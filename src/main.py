@@ -1,11 +1,3 @@
-from pathlib import Path
-if not Path("resource.cp312-win_amd64.pyd").exists():
-    file = open("resource.cp312-win_amd64.pyd", "wb")
-    for i in ["a","b","c"]:
-        with open(f"./resource.a{i}", "rb") as f:
-            file.write(f.read())
-    file.close()
-
 from PetLabel import *
 from PySide6.QtWidgets import (QLabel,QSystemTrayIcon,QApplication,QMenu,QMessageBox,
                                QSlider,QVBoxLayout, QHBoxLayout, QWidget,QListWidget)
