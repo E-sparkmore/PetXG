@@ -7,3 +7,6 @@
 /src/__pycache__/
 /src/resource.py
 /src/resource.qrc
+/src/history_.json
+/src/history.json
+/src/.env
