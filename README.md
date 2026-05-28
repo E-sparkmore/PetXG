@@ -6,6 +6,10 @@
 
 ---
 
+引入 deepseekAPI 进行聊天对话
+
+---
+
 ## Desktop Pet
 
 - Hold down the left button to move the position
