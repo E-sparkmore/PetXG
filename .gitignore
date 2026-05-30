@@ -1,11 +1,11 @@
 /log.txt
 /.idea/
-/PetPackageXG/__pycache__/
-/PetPackageXG/resource.py
-/PetPackageXG/resource.qrc
+/PetXG/__pycache__/
+/PetXG/resource.qrc
 /history_.json
 /history.json
 /.env
-/src/pet_package_xg.egg-info/
 /dist/
-/PetPackageXG/datafile/
+/PetXG/datafile/
+/res-dev/
+/PetXG.egg-info/

@@ -1,5 +1,5 @@
-import PetPackageXG
+import PetXG
 from pathlib import Path
 
 cwd = Path(__file__).parent
-PetPackageXG.main(cwd.as_posix())
+PetXG.main(cwd.as_posix())

@@ -1,5 +1,5 @@
 [project]
-name = "pet-package-xg"
+name = "PetXG"
 version = "1.0.3"
 authors = [
     { name="E-sparkmore" },
