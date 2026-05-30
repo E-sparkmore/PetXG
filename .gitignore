@@ -2,11 +2,11 @@
 /datafile/font/FZY3JW.TTF
 /datafile/font/FZY3K.TTF
 /datafile/font/FZY4JW.TTF
-/src/log.txt
+/log.txt
 /.idea/
 /src/__pycache__/
 /src/resource.py
 /src/resource.qrc
 /src/history_.json
-/src/history.json
+/history.json
 /src/.env

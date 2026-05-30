@@ -18,7 +18,7 @@ class Ui_Form(object):
     def setupUi(self, Form: QWidget):
         if not Form.objectName():
             Form.setObjectName(u"Form")
-        Form.resize(604, 456)
+        Form.resize(400, 600)
         self.verticalLayout = QVBoxLayout(Form)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.textBrowser = QTextBrowser(Form)
@@ -37,7 +37,11 @@ class Ui_Form(object):
         self.pushButton.setObjectName(u"pushButton")
 
         self.horizontalLayout.addWidget(self.pushButton)
-
+        self.lineEdit.setMinimumHeight(40)
+        self.pushButton.setMinimumHeight(40)
+        palette = self.pushButton.palette()
+        palette.setColor(self.pushButton.backgroundRole(), "#EB791D")
+        self.pushButton.setPalette(palette)
 
         self.verticalLayout.addLayout(self.horizontalLayout)
 

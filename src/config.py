@@ -117,5 +117,5 @@ user_input_max_length = 100    #用户输入最大字数
 stream = True   #是否开启流式输出
 charactor_interval = 0.025
 save_history = True    #是否保存历史记录
-save_history_path = "./history.json"    #历史记录保存位置
+save_history_path = "../history.json"    #历史记录保存位置
 historical_dialogue_limit = 20

@@ -6,7 +6,7 @@ import config
 import logging
 import resource
 
-logging.basicConfig(filename="log.txt", filemode="a")
+logging.basicConfig(filename="../log.txt", filemode="a")
 
 def main():
     app = pet_label.QApplication([])

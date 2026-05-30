@@ -3,7 +3,7 @@ import os
 import config
 import ai_ui
 from PySide6.QtWidgets import QApplication, QWidget
-from PySide6.QtCore import Signal, QThread
+from PySide6.QtCore import Signal, QThread, Qt
 from PySide6.QtGui import QFont
 from dotenv import load_dotenv
 import json
@@ -74,6 +74,11 @@ class MyAi(QWidget):
     system_color = 0xF00004
     def __init__(self, font_name=None):
         super().__init__()
+        self.setWindowOpacity(0.9)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), "aliceblue")
+        self.setPalette(palette)
         self.font = QFont()
         if font_name:
             self.font.setFamily(font_name)
@@ -82,7 +87,7 @@ class MyAi(QWidget):
         self.ui = ai_ui.Ui_Form()
         self.ui.setupUi(self)
         self.font.setBold(True)
-        self.ui.textBrowser.setFont(self.font)
+        self.setFont(self.font)
         self.ui.pushButton.clicked.connect(self.send)
         self.ui.lineEdit.returnPressed.connect(self.send)
         self.history = []
