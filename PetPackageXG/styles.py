@@ -1,4 +1,4 @@
-import config
+from . import config
 
 audio_ui_style = '''
     QListWidget {

@@ -1,13 +1,5 @@
-from PySide6.QtWidgets import (QLabel,QSystemTrayIcon,QApplication,QMenu)
-from PySide6.QtGui import QAction,Qt,QIcon,QPixmap,QTransform, QFont
-from PySide6.QtCore import QTimer,Signal,QFile
-import resource
-import random
-import math
-from enum import Enum
-import styles
-import logging
-import config
+from .deps import *
+from . import config, styles
 
 # logging.basicConfig(level=logging.INFO)
 
@@ -28,7 +20,7 @@ class MyPet(QLabel):
     new_x = 0
     new_y = 0
     run_arrive = False
-    reverse_pic = False
+    reverse_pic = True
     grab = False
 
     def __init__(self, font_name=None):

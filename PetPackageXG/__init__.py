@@ -1,15 +1,13 @@
-from PySide6.QtGui import QFontDatabase
-import pet_label
-import audio_ui
-import ai_chat
-import config
-import logging
-import resource
+from .deps import *
+from . import pet_label, audio_ui, ai_chat, config, resource, styles, ai_ui
+from .__version__ import __title__, __description__, __version__
 
-logging.basicConfig(filename="../log.txt", filemode="a")
+logging.basicConfig(filename="log.txt", filemode="a")
 
-def main():
-    app = pet_label.QApplication([])
+def main(save_path: str|None, *args, **kwargs):
+    if save_path:
+        config.save_path = save_path
+    app = QApplication([])
     font_id = QFontDatabase.addApplicationFont(config.font_path + config.font_file)
     font_families = QFontDatabase.applicationFontFamilies(font_id)
     if font_families:
@@ -26,4 +24,4 @@ def main():
     app.exec()
 
 if __name__ == '__main__':
-    main()
+    main(None)

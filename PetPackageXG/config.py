@@ -1,8 +1,7 @@
-from pathlib import Path
-from collections import namedtuple
+from .deps import *
 
 #是否使用qrc资源
-QRC = True
+QRC = False
 
 if QRC:
     path_prefix = ":"
@@ -21,6 +20,7 @@ music_url = url_prefix + music_file
 font_path = datafile + "font/"
 logo_file = "logo.png"
 font_file = "FZY3K.TTF"
+save_path = Path.cwd()
 Ai_name = "小光"
 user_name = "我"
 
@@ -117,5 +117,5 @@ user_input_max_length = 100    #用户输入最大字数
 stream = True   #是否开启流式输出
 charactor_interval = 0.025
 save_history = True    #是否保存历史记录
-save_history_path = "../history.json"    #历史记录保存位置
+save_history_path = Path(save_path) / "history.json"
 historical_dialogue_limit = 20

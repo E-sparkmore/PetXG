@@ -1,22 +1,12 @@
-from openai import OpenAI
 import os
-import config
-import ai_ui
-from PySide6.QtWidgets import QApplication, QWidget
-from PySide6.QtCore import Signal, QThread, Qt
-from PySide6.QtGui import QFont
-from dotenv import load_dotenv
-import json
-import logging
-import time
 
-# 目录下创建".env"文件：
-# AI_BASE_URL = https://api.deepseek.com
-# AI_API_KEY = Your key/你的密钥
-if os.path.exists("./.env"):
+from .deps import *
+from . import ai_ui, config
+
+if os.path.exists(".env"):
     load_dotenv()
 elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
-    with open("./.env", "w") as f:
+    with open("../.env", "w") as f:
         f.write(f"AI_BASE_URL = {os.environ.get("AI_BASE_URL")}\nAI_API_KEY = {os.environ.get("AI_API_KEY")}")
 class AiStreamWork(QThread):
     text_received = Signal(str)

@@ -1,10 +1,5 @@
-from PySide6.QtGui import QIcon, QFont
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QListWidget, QVBoxLayout, QSlider, QLabel, QApplication
-from PySide6.QtCore import Qt, QDir, QUrl
-import config
-import styles
-import resource
+from .deps import *
+from . import config, styles
 
 class AudioWidget(QWidget):
     def __init__(self,font_name=None):
