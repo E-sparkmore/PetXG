@@ -1,13 +1,14 @@
 from .deps import *
+package_base_path = Path(__file__).parent
 
 #是否使用qrc资源
-QRC = False
+QRC = True
 
 if QRC:
     path_prefix = ":"
     url_prefix = f"qrc"
 else:
-    path_prefix = Path(__file__).parent.as_posix()
+    path_prefix = package_base_path.as_posix()
     url_prefix = f"file:///"
 
 idle = path_prefix + "/datafile/frames/"
@@ -117,5 +118,5 @@ user_input_max_length = 100    #用户输入最大字数
 stream = True   #是否开启流式输出
 charactor_interval = 0.025
 save_history = True    #是否保存历史记录
-save_history_path = Path(save_path) / "history.json"
+save_history_path = (Path(save_path) / "history.json").as_posix()
 historical_dialogue_limit = 20

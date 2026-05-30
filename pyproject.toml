@@ -1,0 +1,15 @@
+[project]
+name = "pet-package-xg"
+version = "1.0.3"
+authors = [
+    { name="E-sparkmore" },
+]
+description = "一个来自洛克精灵战记的桌宠"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "GPL-2.0-only"
+dependencies = [
+    "pyside6>=6.10.0",
+    "openai>=2.30.0",
+    "dotenv>=0.9.9",
+]

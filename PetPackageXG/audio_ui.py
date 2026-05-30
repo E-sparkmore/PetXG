@@ -50,7 +50,7 @@ class AudioWidget(QWidget):
 
     def play_audio(self, audio_index):
         if audio_index:
-            self.media_player.setSource(QUrl(config.music_url + self.music_list[audio_index-1]))
+            self.media_player.setSource(QUrl(config.music_url + self.music_list[audio_index - 1]))
             self.media_player.play()
         else:
             self.media_player.stop()

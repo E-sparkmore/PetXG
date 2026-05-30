@@ -1,7 +1,3 @@
-/PetPackageXG/datafile/font/FZY1JW.TTF
-/PetPackageXG/datafile/font/FZY3JW.TTF
-/PetPackageXG/datafile/font/FZY3K.TTF
-/PetPackageXG/datafile/font/FZY4JW.TTF
 /log.txt
 /.idea/
 /PetPackageXG/__pycache__/
@@ -10,3 +6,6 @@
 /history_.json
 /history.json
 /.env
+/src/pet_package_xg.egg-info/
+/dist/
+/PetPackageXG/datafile/
