@@ -4,8 +4,10 @@ from . import ai_ui, config
 if os.path.exists(".env"):
     load_dotenv()
 elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
-    with open("../.env", "w") as f:
-        f.write(f"AI_BASE_URL = {os.environ.get("AI_BASE_URL")}\nAI_API_KEY = {os.environ.get("AI_API_KEY")}")
+    with open(config.save_path / ".env", "w") as f:
+        base_url = os.environ.get("AI_BASE_URL")
+        api_key = os.environ.get("AI_API_KEY")
+        f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
 class AiStreamWork(QThread):
     text_received = Signal(str)
     finished = Signal(str)

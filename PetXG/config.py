@@ -1,5 +1,5 @@
 from .deps import *
-package_base_path = Path(__file__).parent
+package_base_path: Path = Path(__file__).parent
 
 #是否使用qrc资源
 QRC = True
@@ -21,7 +21,7 @@ music_url = url_prefix + music_file
 font_path = datafile + "font/"
 logo_file = "logo.png"
 font_file = "FZY3K.TTF"
-save_path = Path.cwd()
+save_path: Path = Path.cwd()
 Ai_name = "小光"
 user_name = "我"
 
@@ -118,5 +118,6 @@ user_input_max_length = 100    #用户输入最大字数
 stream = True   #是否开启流式输出
 charactor_interval = 0.025
 save_history = True    #是否保存历史记录
-save_history_path = (Path(save_path) / "history.json").as_posix()
+save_history_file = "history.json"
+save_history_path = (package_base_path / save_history_file).as_posix()
 historical_dialogue_limit = 20

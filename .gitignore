@@ -1,11 +1,14 @@
 /log.txt
 /.idea/
 /PetXG/__pycache__/
-/PetXG/resource.qrc
+/res-dev/resource.qrc
 /history_.json
-/history.json
+/PetXG/history.json
 /.env
 /dist/
 /PetXG/datafile/
 /res-dev/
 /PetXG.egg-info/
+/start.bat
+/dist-3.12/
+/dist-3.10/
