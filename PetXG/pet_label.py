@@ -35,6 +35,10 @@ class MyPet(QLabel):
         self.music_action = QAction(self, text=config.action_text.music_action, icon=self.icon)
         self.quit_action = QAction(self, text=config.action_text.quit_action, icon=self.icon)
         self.menu = self.get_menu()
+        self.menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.menu.setWindowFlags(self.menu.windowFlags()
+                            | Qt.WindowType.FramelessWindowHint
+                            | Qt.WindowType.NoDropShadowWindowHint)
         self.font = QFont()
         if font_name:
             self.font.setFamily(font_name)

@@ -10,5 +10,6 @@
 /res-dev/
 /PetXG.egg-info/
 /start.bat
-/dist-3.12/
+/dist/
 /dist-3.10/
+/history.json

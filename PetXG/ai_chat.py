@@ -81,9 +81,9 @@ class MyAi(QWidget):
         self.ui.pushButton.clicked.connect(self.send)
         self.ui.lineEdit.returnPressed.connect(self.send)
         self.history = []
-        if os.path.exists(config.save_history_path) and config.save_history:
+        if os.path.exists(Path(config.save_path) / config.save_history_file) and config.save_history:
             try:
-                with open(config.save_history_path, "r", encoding="utf-8") as f:
+                with open(Path(config.save_path) / config.save_history_file, "r", encoding="utf-8") as f:
                     self.history = json.load(f)
             except Exception as e:
                 logging.error(f"history.json 读取失败: {str(e)}")
@@ -200,7 +200,7 @@ class MyAi(QWidget):
     def save_history(self):
         if config.save_history:
             try:
-                with open(config.save_history_path, "w", encoding="utf-8") as f:
+                with open(Path(config.save_path) / config.save_history_file, "w", encoding="utf-8") as f:
                     json.dump(self.history, f)
             except Exception as e:
                 logging.exception(f"history.json 写入失败: {str(e)}")

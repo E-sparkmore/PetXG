@@ -119,5 +119,4 @@ stream = True   #是否开启流式输出
 charactor_interval = 0.025
 save_history = True    #是否保存历史记录
 save_history_file = "history.json"
-save_history_path = (package_base_path / save_history_file).as_posix()
 historical_dialogue_limit = 20

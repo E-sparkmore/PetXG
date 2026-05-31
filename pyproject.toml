@@ -6,7 +6,7 @@ authors = [
 ]
 description = "一个来自洛克精灵战记的桌宠"
 readme = "README.md"
-requires-python = "==3.12"
+requires-python = ">=3.10"
 license = "GPL-2.0-only"
 dependencies = [
     "pyside6>=6.10.0",

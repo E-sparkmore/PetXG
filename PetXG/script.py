@@ -3,7 +3,10 @@ from . import pet_label, audio_ui, ai_chat, config, resource
 
 def main(save_path: str|None, *args, **kwargs):
     if save_path:
-        config.save_history_path = (Path(save_path) / config.save_history_path).as_posix()
+        config.save_path = Path(save_path)
+    else:
+        config.save_path = config.package_base_path
+    logging.basicConfig(filename=(config.save_path / "log.txt").as_posix(), filemode="a")
     app = QApplication([])
     font_id = QFontDatabase.addApplicationFont(config.font_path + config.font_file)
     font_families = QFontDatabase.applicationFontFamilies(font_id)
