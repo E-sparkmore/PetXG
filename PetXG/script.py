@@ -39,6 +39,7 @@ class PetMain(object):
         tools.add_ai_tool(self.audio_player.get_music_list)
         tools.add_ai_tool(self.audio_player.play_audio)
         tools.add_ai_tool(self.audio_player.set_volume)
+        tools.add_ai_tool(self.chat.memory_tool)
 
 
 

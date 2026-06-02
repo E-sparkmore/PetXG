@@ -22,12 +22,14 @@ class AiStreamWork(QThread):
         self.client  = client
         self.history = []
         self.prompt = ""
-    def prepare(self, history, prompt):
+        self.memory = {}
+    def prepare(self, history, prompt, memory):
         self.history = history
         self.prompt = prompt
+        self.memory = memory
     def run(self):
         messages = [
-            {"role": "system", "content": config.SYSTEM_PROMPT.substitute(memory=json.dumps(tools.memory))}
+            {"role": "system", "content": config.SYSTEM_PROMPT.substitute(memory=json.dumps(self.memory))}
         ]
         if self.history:
             messages.extend(self.history)
@@ -143,12 +145,16 @@ class MyAi(QWidget):
         self.ui.pushButton.clicked.connect(self.send)
         self.ui.lineEdit.returnPressed.connect(self.send)
         self.history = []
-        if os.path.exists(Path(config.save_path) / config.save_history_file) and config.save_history:
-            try:
+        self.memory = {}
+        try:
+            if os.path.exists(Path(config.save_path) / config.save_history_file) and config.save_history:
                 with open(Path(config.save_path) / config.save_history_file, "r", encoding="utf-8") as history_file_stream:
                     self.history = json.load(history_file_stream)
-            except Exception as e:
-                logging.error(f"history.json 读取失败: {str(e)}")
+            if os.path.exists(config.save_path / "memory.json"):
+                with open(config.save_path / "memory.json", "r") as f:
+                    self.memory = json.load(f)
+        except Exception as e:
+            logging.error(f"json 读取失败: {str(e)}")
         self.initialize_view()
         try:
             self.client = OpenAI(
@@ -173,6 +179,7 @@ class MyAi(QWidget):
 
     def finish(self, message: str):
         self.end_message = True
+        self.save_history()
         if message:
             self.append_system_information(message)
             self.history.pop()
@@ -201,9 +208,10 @@ class MyAi(QWidget):
                     })
             self.history.append(tool_calls_set)
             self.history.extend(tool_results)
+            self.save_history()
             if not self.thread:
                 self.get_ai_work()
-            self.thread.prepare(self.history, None)
+            self.thread.prepare(self.history, None, self.memory)
             if config.stream:
                 self.append_assistant_information("")
             self.thread.start()
@@ -241,7 +249,7 @@ class MyAi(QWidget):
                 # 获取回复
                 if not self.thread:
                     self.get_ai_work()
-                self.thread.prepare(self.history, user_input)
+                self.thread.prepare(self.history, user_input, self.memory)
                 self.thread.start()
                 if config.stream:
                     self.ui.pushButton.setDisabled(True)
@@ -309,16 +317,38 @@ class MyAi(QWidget):
             except Exception as e:
                 logging.exception(f"history.json 写入失败: {str(e)}")
 
+    def memory_tool(self, action: Literal["add", "edit", "delete"], key: str, value: str = "") -> str:
+        """
+        操作memory的工具函数。memory采用键值对存储，以key值为索引，value为内容：
+        - "add"：增加一条记忆
+        - "edit"：更新一条记忆
+        - "delete": 根据key删除一条记忆"
+        你可以存储这类信息，以便后续对话中自动引用：
+        - 和用户的关系
+        - 用户偏好
+        - 称呼
+        - 计划/待办事项
+        - 任何你认为对后续对话有帮助的长期信息
+        你可以合并重复记忆并删掉不重要或者对后续对话没有帮助的信息
+        记忆没有备份，谨慎删除
+        """
+        try:
+            match action:
+                case "add":
+                    self.memory[key] = value
+                case "edit":
+                    self.memory[key] = value
+                case "delete":
+                    del self.memory[key]
+            self.save_memory()
+            return "操作成功"
+        except Exception as exc:
+            logging.error(str(exc))
+            return str(exc)
+
     def save_memory(self):
         with open(config.save_path / "memory.json", "w") as memory_file_stream:
-            json.dump(tools.memory, memory_file_stream)
-
-    def __del__(self):
-        self.save_history()
-        self.save_memory()
-
-    def closeEvent(self, event, /):
-        self.save_memory()
+            json.dump(self.memory, memory_file_stream)
 
 def main():
     app = QApplication([])

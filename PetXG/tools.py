@@ -38,47 +38,6 @@ def get_data_time_week() -> str :
     return now.strftime("%Y-%m-%d %H:%M:%S %A")
 
 
-
-memory = {}
-if os.path.exists(config.save_path / "memory.json"):
-    f = open(config.save_path / "memory.json", "r")
-    try:
-        memory = json.load(f)
-    except Exception as e:
-        logging.error(str(e))
-    f.close()
-
-@ai_tool
-def memory_tool(action: Literal["add", "edit", "delete"], key: str, value: str="") -> str:
-    """
-    操作memory的工具函数。memory采用键值对存储，以key值为索引，value为内容：
-    - "add"：增加一条记忆
-    - "edit"：更新一条记忆
-    - "delete": 根据key删除一条记忆"
-    你可以存储这类信息，以便后续对话中自动引用：
-    - 和用户的关系
-    - 用户偏好
-    - 称呼
-    - 计划/待办事项
-    - 任何你认为对后续对话有帮助的长期信息
-    你可以合并重复记忆并删掉不重要或者对后续对话没有帮助的信息
-    记忆没有备份，谨慎删除
-    """
-    try:
-        global memory
-        match action:
-            case "add":
-                memory[key] = value
-            case "edit":
-                memory[key] = value
-            case "delete":
-                del memory[key]
-        return "操作成功"
-    except Exception as exc:
-        logging.error(str(exc))
-        return str(exc)
-
-
 """
 all_tools:
 函数名: {函数, "properties", "required"}
