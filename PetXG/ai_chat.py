@@ -1,5 +1,5 @@
 from .deps import *
-from . import ai_ui, config
+from . import ai_ui, config, tools
 
 if os.path.exists(".env"):
     load_dotenv()
@@ -8,9 +8,22 @@ elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
         base_url = os.environ.get("AI_BASE_URL")
         api_key = os.environ.get("AI_API_KEY")
         f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
+function_tools = [{
+        "type": "function",
+        "function":{
+            "name": i,
+            "description": j[0].__doc__,
+            "parameters": {
+                "type": "object",
+                "properties": j[1],
+                "required": j[2]
+            },
+        }
+    } for i, j in tools.all_tools.items()]
 class AiStreamWork(QThread):
     text_received = Signal(str)
     finished = Signal(str)
+    function_calling = Signal(str)
     def __init__(self, client: OpenAI):
         super().__init__()
         self.client  = client
@@ -21,12 +34,13 @@ class AiStreamWork(QThread):
         self.prompt = prompt
     def run(self):
         messages = [
-            {"role": "system", "content": config.SYSTEM_PROMPT}
+            {"role": "system", "content": config.SYSTEM_PROMPT.substitute(memory=json.dumps(tools.memory))}
         ]
         if self.history:
             messages.extend(self.history)
         # 添加当前用户消息
-        messages.append({"role": "user", "content": self.prompt})
+        if self.prompt:
+            messages.append({"role": "user", "content": self.prompt})
         try:
             response = self.client.chat.completions.create(
                 model=config.model,  # 使用DeepSeek对话模型
@@ -36,11 +50,31 @@ class AiStreamWork(QThread):
                 top_p=config.top_p,
                 frequency_penalty=config.frequency_penalty,
                 presence_penalty=config.presence_penalty,
-                stream = config.stream
+                stream = config.stream,
+                tools= function_tools,
+                tool_choice="auto"
             )
             if config.stream:
+                tool_calls_set = {}
                 charactor_start_time = time.time()
                 for chunk in response:
+                    stream_delta = chunk.choices[0].delta
+                    if stream_delta.tool_calls:
+                        for tool_call_delta in stream_delta.tool_calls:
+                            idx = tool_call_delta.index
+                            if idx not in tool_calls_set:
+                                tool_calls_set[idx] = {
+                                    "id": None,
+                                    "name": None,
+                                    "arguments": ""
+                                }
+                            if tool_call_delta.id:
+                                tool_calls_set[idx]["id"] = tool_call_delta.id
+                            if tool_call_delta.function.name:
+                                tool_calls_set[idx]["name"] = tool_call_delta.function.name
+                            if tool_call_delta.function.arguments:
+                                tool_calls_set[idx]["arguments"] += tool_call_delta.function.arguments
+
                     content = chunk.choices[0].delta.content
                     if content:
                         for i in content:
@@ -50,9 +84,44 @@ class AiStreamWork(QThread):
                             self.text_received.emit(i)
                             charactor_start_time = time.time()
                 self.finished.emit("")
+                if tool_calls_set:
+                    assistant_message = {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": []
+                    }
+                    for idx, tc in tool_calls_set.items():
+                        tool_call_obj = {
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["name"],
+                                "arguments": tc["arguments"]
+                            }
+                        }
+                        assistant_message["tool_calls"].append(tool_call_obj)
+                    self.function_calling.emit(json.dumps(assistant_message))
             else:
                 self.text_received.emit(response.choices[0].message.content)
                 self.finished.emit("")
+                if response.choices[0].message.tool_calls:
+                    assistant_message = {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": []
+                    }
+                    for tool_call in response.choices[0].message.tool_calls:
+                        tool_call_obj = {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            }
+                        }
+                        assistant_message["tool_calls"].append(tool_call_obj)
+                    self.function_calling.emit(json.dumps(assistant_message))
+
         except Exception as e:
             self.finished.emit(f"{config.Ai_name}遇到了一点问题: {str(e)}")
             logging.error(f"调用API出现问题: {str(e)}")
@@ -104,6 +173,7 @@ class MyAi(QWidget):
         self.end_message = True
         self.thread.text_received.connect(self.tackle_message)
         self.thread.finished.connect(self.finish)
+        self.thread.function_calling.connect(self.function_calling)
 
     def finish(self, message: str):
         self.end_message = True
@@ -113,6 +183,32 @@ class MyAi(QWidget):
         if config.stream:
             self.ui.pushButton.setDisabled(False)
             self.ui.lineEdit.returnPressed.connect(self.send)
+
+    def function_calling(self, message: str):
+        if message:
+            if config.stream:
+                self.ui.pushButton.setDisabled(True)
+                self.ui.lineEdit.returnPressed.disconnect(self.send)
+            self.append_information("正在使用工具")
+            tool_calls_set = json.loads(message)
+            tool_results = []
+            for tool_call in tool_calls_set["tool_calls"]:
+                if tool_call["function"]["name"] in tools.all_tools:
+                    arguments = json.loads(tool_call["function"]["arguments"])
+                    result = tools.all_tools[tool_call["function"]["name"]][0](**arguments)
+                    if result is None:
+                        result = ""
+                    tool_results.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": result
+                    })
+            self.history.append(tool_calls_set)
+            self.history.extend(tool_results)
+            self.thread.prepare(self.history, None)
+            if config.stream:
+                self.append_assistant_information("")
+            self.thread.start()
 
     def send(self):
         user_input = self.ui.lineEdit.text().strip()
@@ -161,10 +257,13 @@ class MyAi(QWidget):
             self.end_message = False
         else:
             self.history[-1]["content"] += message
-        cursor = self.ui.textBrowser.textCursor()
-        cursor.movePosition(cursor.MoveOperation.End)
-        self.ui.textBrowser.setTextCursor(cursor)
-        self.ui.textBrowser.insertPlainText(message)
+        if config.stream:
+            cursor = self.ui.textBrowser.textCursor()
+            cursor.movePosition(cursor.MoveOperation.End)
+            self.ui.textBrowser.setTextCursor(cursor)
+            self.ui.textBrowser.insertPlainText(message)
+        else:
+            self.append_assistant_information(message)
         if len(self.history) > config.historical_dialogue_limit * 2:
             self.history = self.history[-config.historical_dialogue_limit * 2:]
         return
@@ -193,7 +292,10 @@ class MyAi(QWidget):
                     case "user":
                         self.append_user_information(i["content"])
                     case "assistant":
-                        self.append_assistant_information(i["content"])
+                        if i["content"]:
+                            self.append_assistant_information(i["content"])
+                        elif i["tool_calls"]:
+                            self.append_information("正在使用工具")
                     case _:
                         logging.error("history 出现其他值")
 
@@ -205,8 +307,16 @@ class MyAi(QWidget):
             except Exception as e:
                 logging.exception(f"history.json 写入失败: {str(e)}")
 
+    def save_memory(self):
+        with open(config.save_path / "memory.json", "w") as f:
+            json.dump(tools.memory, f)
+
     def __del__(self):
         self.save_history()
+        self.save_memory()
+
+    def closeEvent(self, event, /):
+        self.save_memory()
 
 def main():
     app = QApplication([])
