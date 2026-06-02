@@ -7,6 +7,13 @@ class PetMain(object):
             config.save_path = Path(save_path)
         else:
             config.save_path = config.package_base_path
+        if os.path.exists(config.save_path / ".env"):
+            load_dotenv(dotenv_path=config.save_path / ".env")
+        elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
+            with open(config.save_path / ".env", "w") as f:
+                base_url = os.environ.get("AI_BASE_URL")
+                api_key = os.environ.get("AI_API_KEY")
+                f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
         logging.basicConfig(filename=(config.save_path / "log.txt").as_posix(), filemode="a")
         self.app = QApplication([])
         self.font_id = QFontDatabase.addApplicationFont(config.font_path + config.font_file)
@@ -32,3 +39,9 @@ class PetMain(object):
         tools.add_ai_tool(self.audio_player.get_music_list)
         tools.add_ai_tool(self.audio_player.play_audio)
         tools.add_ai_tool(self.audio_player.set_volume)
+
+
+
+def main(save_path):
+    pet = PetMain(save_path)
+    pet.exec()
