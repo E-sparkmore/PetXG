@@ -48,16 +48,34 @@ class AudioWidget(QWidget):
         self.volume_slider.setValue(50)
         self.volume_slider.setMinimumHeight(30)
 
-    def play_audio(self, audio_index):
-        if audio_index:
-            self.media_player.setSource(QUrl(config.music_url + self.music_list[audio_index - 1]))
-            self.media_player.play()
-        else:
-            self.media_player.stop()
+    def play_audio(self, audio_index: int) -> str:
+        """根据音乐列表索引播放。索引为0时不播放，音乐列表起始索引为1"""
+        try:
+            if audio_index:
+                self.media_player.setSource(QUrl(config.music_url + self.music_list[audio_index - 1]))
+                self.media_player.play()
+            else:
+                self.media_player.stop()
+            self.list_view.setCurrentRow(audio_index)
+            return "成功"
+        except Exception as exc:
+            logging.error(str(exc))
+            return str(exc)
 
-    def set_volume(self, value):
-        volume = value / 100.0
-        self.audio_output.setVolume(volume)
+    def set_volume(self, value: int) -> str:
+        """设置音乐播放的音量，范围0到100"""
+        try:
+            volume = value / 100.0
+            self.volume_slider.setValue(value)
+            self.audio_output.setVolume(volume)
+            return "成功"
+        except Exception as exc:
+            logging.error(str(exc))
+            return str(exc)
+
+    def get_music_list(self) -> str:
+        """获取音乐列表"""
+        return json.dumps(self.music_list)
 
 def main():
     app = QApplication([])

@@ -8,7 +8,13 @@ elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
         base_url = os.environ.get("AI_BASE_URL")
         api_key = os.environ.get("AI_API_KEY")
         f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
-function_tools = [{
+class AiStreamWork(QThread):
+    text_received = Signal(str)
+    finished = Signal(str)
+    function_calling = Signal(str)
+    def __init__(self, client: OpenAI):
+        super().__init__()
+        self.function_tools = [{
         "type": "function",
         "function":{
             "name": i,
@@ -20,12 +26,6 @@ function_tools = [{
             },
         }
     } for i, j in tools.all_tools.items()]
-class AiStreamWork(QThread):
-    text_received = Signal(str)
-    finished = Signal(str)
-    function_calling = Signal(str)
-    def __init__(self, client: OpenAI):
-        super().__init__()
         self.client  = client
         self.history = []
         self.prompt = ""
@@ -51,7 +51,7 @@ class AiStreamWork(QThread):
                 frequency_penalty=config.frequency_penalty,
                 presence_penalty=config.presence_penalty,
                 stream = config.stream,
-                tools= function_tools,
+                tools= self.function_tools,
                 tool_choice="auto"
             )
             if config.stream:
@@ -152,8 +152,8 @@ class MyAi(QWidget):
         self.history = []
         if os.path.exists(Path(config.save_path) / config.save_history_file) and config.save_history:
             try:
-                with open(Path(config.save_path) / config.save_history_file, "r", encoding="utf-8") as f:
-                    self.history = json.load(f)
+                with open(Path(config.save_path) / config.save_history_file, "r", encoding="utf-8") as history_file_stream:
+                    self.history = json.load(history_file_stream)
             except Exception as e:
                 logging.error(f"history.json 读取失败: {str(e)}")
         self.initialize_view()
@@ -169,8 +169,11 @@ class MyAi(QWidget):
             self.ui.pushButton.setDisabled(True)
             logging.warning(str(e))
             return
-        self.thread = AiStreamWork(self.client)
+        self.thread = None
         self.end_message = True
+
+    def get_ai_work(self):
+        self.thread = AiStreamWork(self.client)
         self.thread.text_received.connect(self.tackle_message)
         self.thread.finished.connect(self.finish)
         self.thread.function_calling.connect(self.function_calling)
@@ -205,6 +208,8 @@ class MyAi(QWidget):
                     })
             self.history.append(tool_calls_set)
             self.history.extend(tool_results)
+            if not self.thread:
+                self.get_ai_work()
             self.thread.prepare(self.history, None)
             if config.stream:
                 self.append_assistant_information("")
@@ -241,6 +246,8 @@ class MyAi(QWidget):
                         self.append_system_information("不可重新发送")
                         return
                 # 获取回复
+                if not self.thread:
+                    self.get_ai_work()
                 self.thread.prepare(self.history, user_input)
                 self.thread.start()
                 if config.stream:
@@ -296,20 +303,22 @@ class MyAi(QWidget):
                             self.append_assistant_information(i["content"])
                         elif i["tool_calls"]:
                             self.append_information("正在使用工具")
+                    case "tool":
+                        pass
                     case _:
                         logging.error("history 出现其他值")
 
     def save_history(self):
         if config.save_history:
             try:
-                with open(Path(config.save_path) / config.save_history_file, "w", encoding="utf-8") as f:
-                    json.dump(self.history, f)
+                with open(Path(config.save_path) / config.save_history_file, "w", encoding="utf-8") as history_file_stream:
+                    json.dump(self.history, history_file_stream)
             except Exception as e:
                 logging.exception(f"history.json 写入失败: {str(e)}")
 
     def save_memory(self):
-        with open(config.save_path / "memory.json", "w") as f:
-            json.dump(tools.memory, f)
+        with open(config.save_path / "memory.json", "w") as memory_file_stream:
+            json.dump(tools.memory, memory_file_stream)
 
     def __del__(self):
         self.save_history()

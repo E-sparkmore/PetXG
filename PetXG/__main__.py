@@ -1,4 +1,7 @@
 from . import script
 
+def main(save_path):
+    pet = script.PetMain(save_path)
+    pet.exec()
 if __name__ == '__main__':
-    script.main(None)
+    main(None)

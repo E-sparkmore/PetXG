@@ -6,12 +6,11 @@ all_tools = {}
 
 match_type = {int: "integer", str: "string", float: "number"}
 
-def ai_tools(function):
+def add_ai_tool(function):
     """
     不支持lambda函数，要求函数有类型注解, Literal只支持字符串枚举,
     参数支持[int, str, float],
     返回值为字符串或者无返回值
-    暂不支持成员函数
     """
     args = {}
     for key, value in function.__annotations__.items():
@@ -28,7 +27,11 @@ def ai_tools(function):
         default_arg_len = 0
     all_tools[function.__name__] = [function, args, list(args.keys())[:(len(args) - default_arg_len)]]
 
-@ai_tools
+def ai_tool(function):
+    add_ai_tool(function)
+    return function
+
+@ai_tool
 def get_data_time_week() -> str :
     """Get date, time, day of the week"""
     now = datetime.now()
@@ -45,7 +48,7 @@ if os.path.exists(config.save_path / "memory.json"):
         logging.error(str(e))
     f.close()
 
-@ai_tools
+@ai_tool
 def memory_tool(action: Literal["add", "edit", "delete"], key: str, value: str="") -> str:
     """
     操作memory的工具函数。memory采用键值对存储，以key值为索引，value为内容：
@@ -72,6 +75,7 @@ def memory_tool(action: Literal["add", "edit", "delete"], key: str, value: str="
                 del memory[key]
         return "操作成功"
     except Exception as exc:
+        logging.error(str(exc))
         return str(exc)
 
 
