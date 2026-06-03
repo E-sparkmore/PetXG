@@ -1,5 +1,7 @@
-from .deps import *
-from . import ai_ui, config, tools
+from ..setting.deps import *
+from ..setting import config
+from . import ai_ui, tools
+
 
 class AiStreamWork(QThread):
     text_received = Signal(str)

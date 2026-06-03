@@ -1,5 +1,5 @@
 from datetime import datetime
-from .deps import *
+from ..setting.deps import *
 
 all_tools = {}
 

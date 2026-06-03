@@ -6,13 +6,13 @@ from pathlib import Path
 
 lnk_dict: dict[str, str] = {}
 
-@PetXG.tools.ai_tool
+@PetXG.agent.ai_tool
 def start_url(url: str) -> str:
     """打开网址为url（不含"https://"）的网页"""
     result = subprocess.run(["powershell", "-Command", "start", f"https://{url}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return json.dumps({"returnCode": result.returncode, "stdout": str(result.stdout), "stderr": str(result.stderr)})
 
-@PetXG.tools.ai_tool
+@PetXG.agent.ai_tool
 def get_desktop_link() -> str:
     """获取用户桌面上的快捷方式"""
     user_desktop = Path.home() / "Desktop"
@@ -26,7 +26,7 @@ def get_desktop_link() -> str:
         lnk_dict[i.stem] = str(i)
     return json.dumps(list(lnk_dict.keys()))
 
-@PetXG.tools.ai_tool
+@PetXG.agent.ai_tool
 def start_desktop_app(name: str) -> str:
     """根据快捷方式列表的名称运行应用软件"""
     try:

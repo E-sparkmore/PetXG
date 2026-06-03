@@ -1,5 +1,7 @@
-from .deps import *
-from . import pet_label, audio_ui, ai_chat, config, resource, tools
+from .setting.deps import *
+from . import pet_label, audio_ui, resource
+from .agent import ai_chat, tools
+from .setting import config
 
 class PetMain(object):
     def __init__(self, save_path):

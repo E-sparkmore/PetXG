@@ -1,5 +1,5 @@
-from .deps import *
-from . import config, styles
+from .setting.deps import *
+from .setting import config, styles
 
 # logging.basicConfig(level=logging.INFO)
 
