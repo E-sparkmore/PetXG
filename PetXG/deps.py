@@ -14,4 +14,4 @@ import json
 import time
 from pathlib import Path
 from collections import namedtuple
-from typing import Literal, get_origin
+from typing import Literal, get_origin, Any

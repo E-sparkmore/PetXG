@@ -7,7 +7,7 @@ class AiStreamWork(QThread):
     function_calling = Signal(str)
     def __init__(self, client: OpenAI):
         super().__init__()
-        self.function_tools = [{
+        self.function_tools: list[Any] = [{
         "type": "function",
         "function":{
             "name": i,
@@ -19,11 +19,11 @@ class AiStreamWork(QThread):
             },
         }
     } for i, j in tools.all_tools.items()]
-        self.client  = client
-        self.history = []
-        self.prompt = ""
-        self.memory = {}
-    def prepare(self, history, prompt, memory):
+        self.client = client
+        self.history: list[Any] | None = None
+        self.prompt: str | None = None
+        self.memory: dict[Any, Any] | None = None
+    def prepare(self, history: list[Any], prompt: str, memory: dict[Any, Any]):
         self.history = history
         self.prompt = prompt
         self.memory = memory
@@ -126,34 +126,42 @@ class MyAi(QWidget):
     user_color = 0x19A31B
     assistant_color = 0x307CC7
     system_color = 0xF00004
-    def __init__(self, font_name=None):
+    def __init__(self, font_name: str | None=None):
         super().__init__()
         self.setWindowOpacity(0.9)
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.set_style()
         QApplication.styleHints().colorSchemeChanged.connect(self.set_style)
-        self.font = QFont()
+        self.font: QFont = QFont()
         if font_name:
             self.font.setFamily(font_name)
         self.font.setPointSize(12)
         self.setFont(self.font)
-        self.ui = ai_ui.Ui_Form()
+        self.ui: ai_ui.Ui_Form = ai_ui.Ui_Form()
         self.ui.setupUi(self)
         self.font.setBold(True)
         self.setFont(self.font)
         self.ui.pushButton.clicked.connect(self.send)
         self.ui.lineEdit.returnPressed.connect(self.send)
-        self.history = []
-        self.memory = {}
+        self.history: list[Any] | None = None
+        self.memory: dict[Any,Any] | None = None
+        self.text_browser_is_empty: bool = True
         try:
             if os.path.exists(Path(config.save_path) / config.save_history_file) and config.save_history:
                 with open(Path(config.save_path) / config.save_history_file, "r", encoding="utf-8") as history_file_stream:
                     self.history = json.load(history_file_stream)
+        except Exception as e:
+            logging.error(f"history.json 读取失败: {str(e)}")
+        try:
             if os.path.exists(config.save_path / "memory.json"):
                 with open(config.save_path / "memory.json", "r") as f:
                     self.memory = json.load(f)
         except Exception as e:
-            logging.error(f"json 读取失败: {str(e)}")
+            logging.error(f"memory.json 读取失败: {str(e)}")
+        if self.history is None:
+            self.history = []
+        if self.memory is None:
+            self.memory = {}
         self.initialize_view()
         try:
             self.client = OpenAI(
@@ -225,12 +233,13 @@ class MyAi(QWidget):
             case x if len(x) > config.user_input_max_length:
                 self.append_system_information(f"输入过长，请限制在{config.user_input_max_length}字以内。")
             case x if x.strip().lower() == "/clear_history":
-                self.history = []
+                self.history.clear()
                 self.append_system_information("历史记录已清除")
                 self.save_history()
             case x if x.strip() == "/重新开始" or x.strip().lower() == "/restart":
-                self.history = []
+                self.history.clear()
                 self.ui.textBrowser.setPlainText("")
+                self.text_browser_is_empty = True
                 self.append_system_information("新的开始")
                 self.save_history()
             case _:
@@ -277,11 +286,19 @@ class MyAi(QWidget):
 
     def append_information(self, s: str):
         self.ui.textBrowser.setTextColor(self.information_color)
+        if not self.text_browser_is_empty:
+            self.ui.textBrowser.append("")
+        else:
+            self.text_browser_is_empty = False
         self.ui.textBrowser.append(f"[提示] : {s}")
 
     def append_system_information(self, s: str):
         self.ui.textBrowser.setTextColor(self.system_color)
-        self.ui.textBrowser.append(f"\n[系统] : {s}")
+        if not self.text_browser_is_empty:
+            self.ui.textBrowser.append("")
+        else:
+            self.text_browser_is_empty = False
+        self.ui.textBrowser.append(f"[系统] : {s}")
 
     def append_user_information(self, s: str):
         self.ui.textBrowser.setTextColor(self.user_color)

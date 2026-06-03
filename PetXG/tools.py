@@ -1,6 +1,5 @@
 from datetime import datetime
 from .deps import *
-from . import config
 
 all_tools = {}
 
@@ -31,6 +30,7 @@ def ai_tool(function):
     add_ai_tool(function)
     return function
 
+#函数注册例子
 @ai_tool
 def get_data_time_week() -> str :
     """Get date, time, day of the week"""
