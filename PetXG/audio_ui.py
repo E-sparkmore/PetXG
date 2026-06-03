@@ -31,7 +31,8 @@ class AudioWidget(QWidget):
         self.volume_slider.valueChanged.connect(self.set_volume)
         self.list_view.currentRowChanged.connect(self.play_audio)
         self.list_view.setFont(self.ui_font)
-        self.setStyleSheet(styles.audio_ui_style)
+        self.set_style()
+        QApplication.styleHints().colorSchemeChanged.connect(self.set_style)
 
     def init_ui(self):
         self.setWindowTitle(config.window_title.audio_ui)
@@ -76,6 +77,13 @@ class AudioWidget(QWidget):
     def get_music_list(self) -> str:
         """获取音乐列表"""
         return json.dumps(self.music_list)
+
+    def set_style(self):
+        scheme = QApplication.styleHints().colorScheme()
+        if scheme == Qt.ColorScheme.Light:
+            self.setStyleSheet(styles.audio_ui_light_style)
+        elif scheme == Qt.ColorScheme.Dark:
+            self.setStyleSheet(styles.audio_ui_dark_style)
 
 def main():
     app = QApplication([])

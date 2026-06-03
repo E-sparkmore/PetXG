@@ -23,7 +23,6 @@ class PetMain(object):
         else:
             self.font_family = None
         self.app.setQuitOnLastWindowClosed(False)
-        self.app.styleHints().setColorScheme(Qt.ColorScheme.Light)
         self.mypet = pet_label.MyPet(font_name=self.font_family)
         self.audio_player = audio_ui.AudioWidget(font_name=self.font_family)
         self.chat = ai_chat.MyAi(font_name=self.font_family)

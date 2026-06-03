@@ -1,13 +1,14 @@
 from . import config
 
-audio_ui_style = '''
+audio_ui_light_style = '''
     QListWidget {
         font-weight: bold;
-        background-color: #FFF;
+        background-color: "white";
         outline: none;
     }
     QListWidget::Item {
         padding: 6px;
+        color: black;
         border-bottom: 2px solid #AAA;
     }
     QListWidget::Item::hover {
@@ -23,6 +24,39 @@ audio_ui_style = '''
     }
     AudioWidget {
         background-color: aliceblue;
+    }
+    QLabel {
+        color: black;
+    }
+'''
+
+audio_ui_dark_style = '''
+    QListWidget {
+        font-weight: bold;
+        background-color: #2B2B2B;
+        outline: none;
+    }
+    QListWidget::Item {
+        padding: 6px;
+        color: white;
+        border-bottom: 2px solid #444;
+    }
+    QListWidget::Item::hover {
+        color: white;
+        background-color: #444;
+    }
+    QListWidget::Item::selected {
+        color: white;
+        background-color: #444;
+    }
+    QSlider {
+        width: 25px;
+    }
+    AudioWidget {
+        background-color: #231F1A;
+    }
+    QLabel {
+        color: white;
     }
 '''
 

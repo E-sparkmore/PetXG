@@ -130,9 +130,8 @@ class MyAi(QWidget):
         super().__init__()
         self.setWindowOpacity(0.9)
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), "aliceblue")
-        self.setPalette(palette)
+        self.set_style()
+        QApplication.styleHints().colorSchemeChanged.connect(self.set_style)
         self.font = QFont()
         if font_name:
             self.font.setFamily(font_name)
@@ -349,6 +348,18 @@ class MyAi(QWidget):
     def save_memory(self):
         with open(config.save_path / "memory.json", "w") as memory_file_stream:
             json.dump(self.memory, memory_file_stream)
+
+    def set_style(self):
+        scheme = QApplication.styleHints().colorScheme()
+        if scheme == Qt.ColorScheme.Light:
+            palette = self.palette()
+            palette.setColor(self.backgroundRole(), "aliceblue")
+            self.setPalette(palette)
+        if scheme == Qt.ColorScheme.Dark:
+            palette = self.palette()
+            palette.setColor(self.backgroundRole(), "#231F1A")
+            self.setPalette(palette)
+
 
 def main():
     app = QApplication([])
