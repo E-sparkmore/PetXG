@@ -5,39 +5,43 @@ from . import ai_ui, tools
 
 class AiStreamWork(QThread):
     text_received = Signal(str)
-    finished = Signal(str)
     function_calling = Signal(str)
     def __init__(self, client: OpenAI):
         super().__init__()
         self.function_tools: list[Any] = [{
-        "type": "function",
-        "function":{
-            "name": i,
-            "description": j[0].__doc__,
-            "parameters": {
-                "type": "object",
-                "properties": j[1],
-                "required": j[2]
-            },
-        }
-    } for i, j in tools.all_tools.items()]
+            "type": "function",
+            "function":{
+                "name": i,
+                "description": j[0].__doc__,
+                "parameters": {
+                    "type": "object",
+                    "properties": j[1],
+                    "required": j[2]
+                },
+            }
+        } for i, j in tools.all_tools.items()]
         self.client = client
-        self.history: list[Any] | None = None
-        self.prompt: str | None = None
+        self.history: list[dict[Any, Any]] | None = None
+        self.prompt: list[dict[Any, Any]] | None = None
         self.memory: dict[Any, Any] | None = None
-    def prepare(self, history: list[Any], prompt: str, memory: dict[Any, Any]):
+        self.error: str = ""
+        self.message_stream: str = ""
+        self.this_history: list[dict[Any, Any]] = []
+    def prepare(self, history: list[Any], prompt: list[dict[Any, Any]] | None, memory: dict[Any, Any]):
         self.history = history
         self.prompt = prompt
         self.memory = memory
     def run(self):
-        messages = [
+        messages: list[dict[Any, Any]] = [
             {"role": "system", "content": config.SYSTEM_PROMPT.substitute(memory=json.dumps(self.memory))}
         ]
         if self.history:
             messages.extend(self.history)
         # 添加当前用户消息
         if self.prompt:
-            messages.append({"role": "user", "content": self.prompt})
+            self.this_history.extend(self.prompt)
+        if self.this_history:
+            messages.extend(self.this_history)
         try:
             response = self.client.chat.completions.create(
                 model=config.model,  # 使用DeepSeek对话模型
@@ -51,12 +55,19 @@ class AiStreamWork(QThread):
                 tools= self.function_tools,
                 tool_choice="auto"
             )
+            assistant_tool_message: dict[str, str | None | list[dict[str, str | dict[str, str]]]] = {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": []
+            }
+            use_tool = False
             if config.stream:
                 tool_calls_set = {}
                 charactor_start_time = time.time()
                 for chunk in response:
                     stream_delta = chunk.choices[0].delta
                     if stream_delta.tool_calls:
+                        use_tool = True
                         for tool_call_delta in stream_delta.tool_calls:
                             idx = tool_call_delta.index
                             if idx not in tool_calls_set:
@@ -79,14 +90,12 @@ class AiStreamWork(QThread):
                             if interval < config.charactor_interval:
                                 time.sleep(config.charactor_interval - interval)
                             self.text_received.emit(i)
+                            self.message_stream += i
                             charactor_start_time = time.time()
-                self.finished.emit("")
+                self.this_history.append({"role": "assistant", "content": self.message_stream})
+                self.message_stream = ""
+
                 if tool_calls_set:
-                    assistant_message = {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": []
-                    }
                     for idx, tc in tool_calls_set.items():
                         tool_call_obj = {
                             "id": tc["id"],
@@ -96,17 +105,15 @@ class AiStreamWork(QThread):
                                 "arguments": tc["arguments"]
                             }
                         }
-                        assistant_message["tool_calls"].append(tool_call_obj)
-                    self.function_calling.emit(json.dumps(assistant_message))
+                        assistant_tool_message["tool_calls"].append(tool_call_obj)
+                    self.this_history.append(assistant_tool_message)
+                    self.function_calling.emit(json.dumps(assistant_tool_message))
             else:
-                self.text_received.emit(response.choices[0].message.content)
-                self.finished.emit("")
+                content = response.choices[0].message.content
+                self.text_received.emit(content)
+                self.this_history.append({"role": "assistant", "content": content})
                 if response.choices[0].message.tool_calls:
-                    assistant_message = {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": []
-                    }
+                    use_tool = True
                     for tool_call in response.choices[0].message.tool_calls:
                         tool_call_obj = {
                             "id": tool_call.id,
@@ -116,11 +123,27 @@ class AiStreamWork(QThread):
                                 "arguments": tool_call.function.arguments
                             }
                         }
-                        assistant_message["tool_calls"].append(tool_call_obj)
-                    self.function_calling.emit(json.dumps(assistant_message))
-
+                        assistant_tool_message["tool_calls"].append(tool_call_obj)
+                    self.this_history.append(assistant_tool_message)
+                    self.function_calling.emit(json.dumps(assistant_tool_message))
+            if use_tool:
+                tool_results = []
+                for tool_call_obj in assistant_tool_message["tool_calls"]:
+                    if tool_call_obj["function"]["name"] in tools.all_tools:
+                        arguments = json.loads(tool_call_obj["function"]["arguments"])
+                        result = tools.all_tools[tool_call_obj["function"]["name"]][0](**arguments)
+                        if result is None:
+                            result = ""
+                        tool_results.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call_obj["id"],
+                            "content": result
+                        })
+                self.this_history.extend(tool_results)
+                self.prompt = None
+                self.run()
         except Exception as e:
-            self.finished.emit(f"{config.Ai_name}遇到了一点问题: {str(e)}")
+            self.error = f"{config.Ai_name}遇到了一点问题: {str(e)}"
             logging.error(f"调用API出现问题: {str(e)}")
 
 class MyAi(QWidget):
@@ -177,8 +200,7 @@ class MyAi(QWidget):
             self.ui.pushButton.setDisabled(True)
             logging.warning(str(e))
             return
-        self.thread = None
-        self.end_message = True
+        self.thread: AiStreamWork |None = None
 
     def get_ai_work(self):
         self.thread = AiStreamWork(self.client)
@@ -186,44 +208,23 @@ class MyAi(QWidget):
         self.thread.finished.connect(self.finish)
         self.thread.function_calling.connect(self.function_calling)
 
-    def finish(self, message: str):
-        self.end_message = True
-        self.save_history()
-        if message:
-            self.append_system_information(message)
-            self.history.pop()
+    def finish(self):
+        if self.thread.error:
+            self.append_system_information(self.thread.error)
+            self.thread.error = ""
+        else:
+            self.history.extend(self.thread.this_history)
+        self.thread.this_history.clear()
         if config.stream:
-            self.ui.pushButton.setDisabled(False)
-            self.ui.lineEdit.returnPressed.connect(self.send)
+            self.set_send_disabled(False)
+        if len(self.history) > config.historical_dialogue_limit * 2:
+            self.history = self.history[-config.historical_dialogue_limit * 2:]
+        self.save_history()
 
-    def function_calling(self, message: str):
-        if message:
-            if config.stream:
-                self.ui.pushButton.setDisabled(True)
-                self.ui.lineEdit.returnPressed.disconnect(self.send)
+    def function_calling(self):
             self.append_information("正在使用工具")
-            tool_calls_set = json.loads(message)
-            tool_results = []
-            for tool_call in tool_calls_set["tool_calls"]:
-                if tool_call["function"]["name"] in tools.all_tools:
-                    arguments = json.loads(tool_call["function"]["arguments"])
-                    result = tools.all_tools[tool_call["function"]["name"]][0](**arguments)
-                    if result is None:
-                        result = ""
-                    tool_results.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call["id"],
-                        "content": result
-                    })
-            self.history.append(tool_calls_set)
-            self.history.extend(tool_results)
-            self.save_history()
-            if not self.thread:
-                self.get_ai_work()
-            self.thread.prepare(self.history, None, self.memory)
             if config.stream:
                 self.append_assistant_information("")
-            self.thread.start()
 
     def send(self):
         user_input = self.ui.lineEdit.text().strip()
@@ -259,22 +260,24 @@ class MyAi(QWidget):
                 # 获取回复
                 if not self.thread:
                     self.get_ai_work()
-                self.thread.prepare(self.history, user_input, self.memory)
+                self.thread.prepare(self.history, [{"role": "user", "content": user_input}], self.memory)
                 self.thread.start()
                 if config.stream:
-                    self.ui.pushButton.setDisabled(True)
-                    self.ui.lineEdit.returnPressed.disconnect(self.send)
+                    self.set_send_disabled(True)
                     self.append_assistant_information("")
-                self.history.append({"role": "user", "content": user_input})
         return
+
+    def set_send_disabled(self, arg: bool):
+        if arg:
+            self.ui.pushButton.setDisabled(arg)
+            self.ui.lineEdit.returnPressed.disconnect(self.send)
+        else:
+            self.ui.pushButton.setDisabled(arg)
+            self.ui.lineEdit.returnPressed.connect(self.send)
+
 
     def tackle_message(self, message: str):
         # 保存对话历史（可选，用于保持上下文）
-        if self.end_message:
-            self.history.append({"role": "assistant", "content": message})
-            self.end_message = False
-        else:
-            self.history[-1]["content"] += message
         if config.stream:
             cursor = self.ui.textBrowser.textCursor()
             cursor.movePosition(cursor.MoveOperation.End)
@@ -282,8 +285,6 @@ class MyAi(QWidget):
             self.ui.textBrowser.insertPlainText(message)
         else:
             self.append_assistant_information(message)
-        if len(self.history) > config.historical_dialogue_limit * 2:
-            self.history = self.history[-config.historical_dialogue_limit * 2:]
         return
 
     def append_information(self, s: str):
