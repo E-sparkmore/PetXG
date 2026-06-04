@@ -1,6 +1,6 @@
 from .deps import *
 from string import Template
-package_base_path: Path = Path(__file__).parent
+package_base_path: Path = Path(__file__).parent.parent
 
 #是否使用qrc资源
 QRC = True
@@ -25,6 +25,12 @@ font_file = "FZY3K.TTF"
 save_path: Path = Path.cwd()
 Ai_name = "小光"
 user_name = "我"
+
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler((package_base_path / "log.txt").as_posix(), "w")
+log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(log_format)
+logger.addHandler(file_handler)
 
 ActionText = namedtuple(
     "action_text",
@@ -121,3 +127,4 @@ charactor_interval = 0.025
 save_history = True    #是否保存历史记录
 save_history_file = "history.json"
 historical_dialogue_limit = 20
+

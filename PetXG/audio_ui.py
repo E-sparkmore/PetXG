@@ -1,5 +1,6 @@
 from .setting.deps import *
 from .setting import config, styles
+from .setting.config import logger
 
 class AudioWidget(QWidget):
     def __init__(self,font_name=None):
@@ -60,7 +61,7 @@ class AudioWidget(QWidget):
             self.list_view.setCurrentRow(audio_index)
             return "成功"
         except Exception as exc:
-            logging.error(str(exc))
+            logger.error(str(exc))
             return str(exc)
 
     def set_volume(self, value: int) -> str:
@@ -71,7 +72,7 @@ class AudioWidget(QWidget):
             self.audio_output.setVolume(volume)
             return "成功"
         except Exception as exc:
-            logging.error(str(exc))
+            logger.error(str(exc))
             return str(exc)
 
     def get_music_list(self) -> str:

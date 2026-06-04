@@ -1,7 +1,6 @@
 from .setting.deps import *
 from .setting import config, styles
-
-# logging.basicConfig(level=logging.INFO)
+from .setting.config import logger
 
 class Direction(Enum):
     no_direction = 0
@@ -62,7 +61,7 @@ class MyPet(QLabel):
         self.customContextMenuRequested.connect(self.show_context_menu)
 
     def show_context_menu(self,point):
-        if self.resource_dir == config.runback or self.resource_dir == config.runforward:
+        if (self.resource_dir == config.runback or self.resource_dir == config.runforward) and not self.run_arrive:
             self.timer.timeout.disconnect(self.move_run)
             self.run_arrive = True
         self.menu.move(self.mapToGlobal(point))
@@ -102,17 +101,17 @@ class MyPet(QLabel):
 
     def change_to_run(self):
         if self.screen().geometry().width() <= self.width() or self.screen().geometry().height() <= self.height():
-            logging.warning("Failed to change to run")
+            logger.warning("Failed to change to run")
             return
         for i in range(100):
             self.new_x = random.randint(0,self.screen().geometry().width() - self.width())
             self.new_y = random.randint(0,self.screen().geometry().height() - self.height())
             if abs(self.new_x - self.x()) >= self.width() or abs(self.new_y - self.y()) >= self.height():
-                logging.info("Change to run")
-                logging.info(f"New x: {self.new_x}, new y: {self.new_y}")
+                logger.info("Change to run")
+                logger.info(f"New x: {self.new_x}, new y: {self.new_y}")
                 break
             elif i == 99:
-                logging.warning("Failed to change to run")
+                logger.warning("Failed to change to run")
                 return
         match self.judge_direction():
             case Direction.right_down:
@@ -208,7 +207,7 @@ class MyPet(QLabel):
         if event.buttons() == Qt.MouseButton.LeftButton or event.buttons() == Qt.MouseButton.MiddleButton:
             self.oldpos = event.globalPosition().toPoint()
             self.grab = True
-        if self.resource_dir == config.runback or self.resource_dir == config.runforward:
+        if (self.resource_dir == config.runback or self.resource_dir == config.runforward) and not self.run_arrive:
             self.timer.timeout.disconnect(self.move_run)
             self.run_arrive = True
 

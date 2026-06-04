@@ -1,7 +1,7 @@
 from ..setting.deps import *
 from ..setting import config
 from . import ai_ui, tools
-
+from ..setting.config import logger
 
 class AiStreamWork(QThread):
     text_received = Signal(str)
@@ -144,7 +144,7 @@ class AiStreamWork(QThread):
                 self.run()
         except Exception as e:
             self.error = f"{config.Ai_name}遇到了一点问题: {str(e)}"
-            logging.error(f"调用API出现问题: {str(e)}")
+            logger.error(f"调用API出现问题: {str(e)}")
 
 class MyAi(QWidget):
     information_color = 0x777777
@@ -176,13 +176,13 @@ class MyAi(QWidget):
                 with open(Path(config.save_path) / config.save_history_file, "r", encoding="utf-8") as history_file_stream:
                     self.history = json.load(history_file_stream)
         except Exception as e:
-            logging.error(f"history.json 读取失败: {str(e)}")
+            logger.error(f"history.json 读取失败: {str(e)}")
         try:
             if os.path.exists(config.save_path / "memory.json"):
                 with open(config.save_path / "memory.json", "r") as f:
                     self.memory = json.load(f)
         except Exception as e:
-            logging.error(f"memory.json 读取失败: {str(e)}")
+            logger.error(f"memory.json 读取失败: {str(e)}")
         if self.history is None:
             self.history = []
         if self.memory is None:
@@ -198,7 +198,7 @@ class MyAi(QWidget):
             self.ui.pushButton.setDisabled(True)
             self.append_system_information('请添加“AI_BASE_URL”与“AI_API_KEY”的环境变量，或者该目录下创建".env“文件，要求使用兼容openai的接口')
             self.ui.pushButton.setDisabled(True)
-            logging.warning(str(e))
+            logger.warning(str(e))
             return
         self.thread: AiStreamWork |None = None
 
@@ -326,7 +326,7 @@ class MyAi(QWidget):
                     case "tool":
                         pass
                     case _:
-                        logging.error("history 出现其他值")
+                        logger.error("history 出现其他值")
 
     def save_history(self):
         if config.save_history:
@@ -334,7 +334,7 @@ class MyAi(QWidget):
                 with open(Path(config.save_path) / config.save_history_file, "w", encoding="utf-8") as history_file_stream:
                     json.dump(self.history, history_file_stream)
             except Exception as e:
-                logging.exception(f"history.json 写入失败: {str(e)}")
+                logger.exception(f"history.json 写入失败: {str(e)}")
 
     def memory_tool(self, action: Literal["add", "edit", "delete"], key: str, value: str = "") -> str:
         """
@@ -362,7 +362,7 @@ class MyAi(QWidget):
             self.save_memory()
             return "操作成功"
         except Exception as exc:
-            logging.error(str(exc))
+            logger.error(str(exc))
             return str(exc)
 
     def save_memory(self):

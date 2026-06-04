@@ -1,5 +1,6 @@
 from datetime import datetime
 from ..setting.deps import *
+from ..setting.config import logger
 
 all_tools = {}
 
@@ -19,7 +20,7 @@ def add_ai_tool(function):
             elif get_origin(value) == Literal:
                 args[key] = {"type": "string", "enum": list(value.__args__)}
             else:
-                logging.error(f"{function.__name__} 的参数 {key} 类型错误")
+                logger.error(f"{function.__name__} 的参数 {key} 类型错误")
     if function.__defaults__:
         default_arg_len = len(function.__defaults__)
     else:

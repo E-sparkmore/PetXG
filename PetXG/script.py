@@ -2,11 +2,15 @@ from .setting.deps import *
 from . import pet_label, audio_ui, resource
 from .agent import ai_chat, tools
 from .setting import config
+from .setting.config import logger
 
 class PetMain(object):
     def __init__(self, save_path):
         if save_path:
             config.save_path = Path(save_path)
+            file_handler = logging.FileHandler((config.save_path / "log.txt").as_posix(), "w")
+            file_handler.setFormatter(config.log_format)
+            logger.addHandler(file_handler)
         else:
             config.save_path = config.package_base_path
         if os.path.exists(config.save_path / ".env"):
@@ -16,7 +20,6 @@ class PetMain(object):
                 base_url = os.environ.get("AI_BASE_URL")
                 api_key = os.environ.get("AI_API_KEY")
                 f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
-        logging.basicConfig(filename=(config.save_path / "log.txt").as_posix(), filemode="a")
         self.app = QApplication([])
         self.font_id = QFontDatabase.addApplicationFont(config.font_path + config.font_file)
         self.font_families = QFontDatabase.applicationFontFamilies(self.font_id)
