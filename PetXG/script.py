@@ -13,13 +13,6 @@ class PetMain(object):
             logger.addHandler(file_handler)
         else:
             config.save_path = config.package_base_path
-        if os.path.exists(config.save_path / ".env"):
-            load_dotenv(dotenv_path=config.save_path / ".env")
-        elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
-            with open(config.save_path / ".env", "w") as f:
-                base_url = os.environ.get("AI_BASE_URL")
-                api_key = os.environ.get("AI_API_KEY")
-                f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
         self.app = QApplication([])
         self.font_id = QFontDatabase.addApplicationFont(config.font_path + config.font_file)
         self.font_families = QFontDatabase.applicationFontFamilies(self.font_id)
@@ -30,7 +23,7 @@ class PetMain(object):
         self.app.setQuitOnLastWindowClosed(False)
         self.mypet = pet_label.MyPet(font_name=self.font_family)
         self.audio_player = audio_ui.AudioWidget(font_name=self.font_family)
-        self.chat = ai_chat.MyAi(font_name=self.font_family)
+        self.chat = ai_chat.MyAi(font_name=self.font_family, dotenv_path=config.save_path / ".env")
         self.mypet.music_action.triggered.connect(self.audio_player.show)
         self.mypet.chat_action.triggered.connect(self.chat.show)
         self.add_tools()

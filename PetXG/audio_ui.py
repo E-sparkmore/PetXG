@@ -17,12 +17,11 @@ class AudioWidget(QWidget):
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.label = QLabel("音量:")
         self.label.setFont(self.ui_font)
-        self.music_dir = QDir(config.music_file)
-        self.music_dir.setNameFilters([j for i in config.music_filter for j in (i, i.upper())])
-        self.music_list = self.music_dir.entryList()
-        self.list_view.addItem("无")
-        for i in self.music_list:
-            self.list_view.addItem(i.split(".")[0])
+        self.music_dir: QDir | None = None
+        self.music_list = []
+        self.music_path: Path = Path(config.music_file)
+        self.url_prefix = ""
+        self.prepare_music(self.music_path, config.QRC)
         self.init_ui()
         self.audio_output = QAudioOutput()
         self.media_player = QMediaPlayer()
@@ -34,6 +33,21 @@ class AudioWidget(QWidget):
         self.list_view.setFont(self.ui_font)
         self.set_style()
         QApplication.styleHints().colorSchemeChanged.connect(self.set_style)
+
+    def prepare_music(self, path: str | Path, qrc: bool):
+        self.music_path = Path(path)
+        if qrc:
+            self.url_prefix = config.qrc_url_prefix
+        else:
+            self.url_prefix = config.file_url_prefix
+        self.music_dir = QDir(path)
+        self.music_dir.setNameFilters([j for i in config.music_filter for j in (i, i.upper())])
+        self.music_list.clear()
+        self.music_list.extend(self.music_dir.entryList())
+        self.list_view.clear()
+        self.list_view.addItem("无")
+        for i in self.music_list:
+            self.list_view.addItem(i.split(".")[0])
 
     def init_ui(self):
         self.setWindowTitle(config.window_title.audio_ui)
@@ -54,7 +68,7 @@ class AudioWidget(QWidget):
         """根据音乐列表索引播放。索引为0时不播放，音乐列表起始索引为1"""
         try:
             if audio_index:
-                self.media_player.setSource(QUrl(config.music_url + self.music_list[audio_index - 1]))
+                self.media_player.setSource(QUrl(self.url_prefix + str(self.music_path / self.music_list[audio_index - 1])))
                 self.media_player.play()
             else:
                 self.media_player.stop()

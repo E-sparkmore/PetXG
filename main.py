@@ -37,5 +37,4 @@ def start_desktop_app(name: str) -> str:
         return str(e)
 
 cwd = Path(__file__).parent
-main = PetXG.PetMain(cwd)
-main.exec()
+PetXG.main(cwd)

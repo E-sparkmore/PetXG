@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import (QLabel,QSystemTrayIcon,QApplication,QMenu, QWidget,
+from PySide6.QtWidgets import (QLabel,QSystemTrayIcon,QApplication,QMenu, QWidget, QLineEdit,QPushButton,
                                QHBoxLayout, QListWidget, QVBoxLayout, QSlider, QMessageBox)
 from PySide6.QtGui import QAction,Qt,QIcon,QPixmap,QTransform, QFont, QFontDatabase, QPalette
 from PySide6.QtCore import QTimer,Signal,QFile, QThread, Qt, QDir, QUrl

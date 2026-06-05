@@ -43,6 +43,8 @@ class AiStreamWork(QThread):
         if self.this_history:
             messages.extend(self.this_history)
         try:
+            if self.client is None:
+                raise Exception("无法连接")
             response = self.client.chat.completions.create(
                 model=config.model,  # 使用DeepSeek对话模型
                 messages=messages,
@@ -92,7 +94,8 @@ class AiStreamWork(QThread):
                             self.text_received.emit(i)
                             self.message_stream += i
                             charactor_start_time = time.time()
-                self.this_history.append({"role": "assistant", "content": self.message_stream})
+                if self.message_stream:
+                    self.this_history.append({"role": "assistant", "content": self.message_stream})
                 self.message_stream = ""
 
                 if tool_calls_set:
@@ -111,7 +114,8 @@ class AiStreamWork(QThread):
             else:
                 content = response.choices[0].message.content
                 self.text_received.emit(content)
-                self.this_history.append({"role": "assistant", "content": content})
+                if self.message_stream:
+                    self.this_history.append({"role": "assistant", "content": content})
                 if response.choices[0].message.tool_calls:
                     use_tool = True
                     for tool_call in response.choices[0].message.tool_calls:
@@ -131,7 +135,9 @@ class AiStreamWork(QThread):
                 for tool_call_obj in assistant_tool_message["tool_calls"]:
                     if tool_call_obj["function"]["name"] in tools.all_tools:
                         arguments = json.loads(tool_call_obj["function"]["arguments"])
-                        result = tools.all_tools[tool_call_obj["function"]["name"]][0](**arguments)
+                        tool_name = tool_call_obj["function"]["name"]
+                        logger.info(f"use tool: {tool_name}")
+                        result = tools.all_tools[tool_name][0](**arguments)
                         if result is None:
                             result = ""
                         tool_results.append({
@@ -151,8 +157,24 @@ class MyAi(QWidget):
     user_color = 0x19A31B
     assistant_color = 0x307CC7
     system_color = 0xF00004
-    def __init__(self, font_name: str | None=None):
+    def __init__(self, font_name: str | None=None, dotenv_path: str | Path | None=None, use_tool_add_ui_info: bool=True):
         super().__init__()
+        self.use_tool_add_ui_info = use_tool_add_ui_info
+        self.api = QueryAPI(self)
+        self.stream_work: AiStreamWork | None = None
+        if dotenv_path is not None and os.path.exists(dotenv_path):
+            load_dotenv(dotenv_path=dotenv_path)
+        elif config.save_path != config.package_base_path and os.path.exists(config.save_path / ".env"):
+            load_dotenv(dotenv_path=config.save_path / ".env")
+        elif config.save_path == config.package_base_path:
+            load_dotenv(dotenv_path=config.package_base_path)
+        elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
+            base_url = os.environ.get("AI_BASE_URL")
+            api_key = os.environ.get("AI_API_KEY")
+            self.save_dotenv(base_url, api_key)
+        if "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
+            self.api.set_base_url(os.environ.get("AI_BASE_URL"))
+            self.api.set_api_key(os.environ.get("AI_API_KEY"))
         self.setWindowOpacity(0.9)
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.set_style()
@@ -166,6 +188,7 @@ class MyAi(QWidget):
         self.ui.setupUi(self)
         self.font.setBold(True)
         self.setFont(self.font)
+        self.api.setFont(self.font)
         self.ui.pushButton.clicked.connect(self.send)
         self.ui.lineEdit.returnPressed.connect(self.send)
         self.history: list[Any] | None = None
@@ -188,33 +211,34 @@ class MyAi(QWidget):
         if self.memory is None:
             self.memory = {}
         self.initialize_view()
+        self.client: OpenAI | None = None
         try:
-            self.client = OpenAI(
-                api_key=os.environ.get("AI_API_KEY"),
-                base_url=os.environ.get("AI_BASE_URL")
-            )
+            if not (self.api.base_url and self.api.api_key):
+                raise Exception("base_url或者key为空")
+            self.client = OpenAI(api_key=self.api.api_key,
+                                 base_url = self.api.base_url)
         except Exception as e:
-            self.ui.lineEdit.returnPressed.disconnect(self.send)
-            self.ui.pushButton.setDisabled(True)
             self.append_system_information('请添加“AI_BASE_URL”与“AI_API_KEY”的环境变量，或者该目录下创建".env“文件，要求使用兼容openai的接口')
-            self.ui.pushButton.setDisabled(True)
             logger.warning(str(e))
             return
-        self.thread: AiStreamWork |None = None
 
     def get_ai_work(self):
-        self.thread = AiStreamWork(self.client)
-        self.thread.text_received.connect(self.tackle_message)
-        self.thread.finished.connect(self.finish)
-        self.thread.function_calling.connect(self.function_calling)
+        if self.client:
+            self.stream_work = AiStreamWork(self.client)
+            self.stream_work.text_received.connect(self.tackle_message)
+            self.stream_work.finished.connect(self.finish)
+            self.stream_work.function_calling.connect(self.function_calling)
+        else:
+            self.stream_work = None
+        return self.stream_work
 
     def finish(self):
-        if self.thread.error:
-            self.append_system_information(self.thread.error)
-            self.thread.error = ""
+        if self.stream_work.error:
+            self.append_system_information(self.stream_work.error)
+            self.stream_work.error = ""
         else:
-            self.history.extend(self.thread.this_history)
-        self.thread.this_history.clear()
+            self.history.extend(self.stream_work.this_history)
+        self.stream_work.this_history.clear()
         if config.stream:
             self.set_send_disabled(False)
         if len(self.history) > config.historical_dialogue_limit * 2:
@@ -222,9 +246,10 @@ class MyAi(QWidget):
         self.save_history()
 
     def function_calling(self):
+        if self.use_tool_add_ui_info:
             self.append_information("正在使用工具")
-            if config.stream:
-                self.append_assistant_information("")
+        if config.stream:
+            self.append_assistant_information("")
 
     def send(self):
         user_input = self.ui.lineEdit.text().strip()
@@ -245,6 +270,8 @@ class MyAi(QWidget):
                 self.text_browser_is_empty = True
                 self.append_system_information("新的开始")
                 self.save_history()
+            case x if x.strip().lower() == "/api":
+                self.api.show()
             case _:
                 user_input = user_input.strip()
                 if len(user_input) > 8 and user_input[0:8].lower() == "/resend ":
@@ -258,10 +285,21 @@ class MyAi(QWidget):
                         self.append_system_information("不可重新发送")
                         return
                 # 获取回复
-                if not self.thread:
+                if not self.client:
+                    try:
+                        self.client = OpenAI(api_key = self.api.api_key,
+                                             base_url = self.api.base_url)
+                    except Exception as e:
+                        logger.error(str(e))
+                        self.append_system_information(str(e))
+                        return
+                else:
+                    self.client.api_key = self.api.api_key
+                    self.client.base_url = self.api.base_url
+                if not self.stream_work:
                     self.get_ai_work()
-                self.thread.prepare(self.history, [{"role": "user", "content": user_input}], self.memory)
-                self.thread.start()
+                self.stream_work.prepare(self.history, [{"role": "user", "content": user_input}], self.memory)
+                self.stream_work.start()
                 if config.stream:
                     self.set_send_disabled(True)
                     self.append_assistant_information("")
@@ -321,7 +359,7 @@ class MyAi(QWidget):
                     case "assistant":
                         if i["content"]:
                             self.append_assistant_information(i["content"])
-                        elif i["tool_calls"]:
+                        elif "tool_calls" in i and i["tool_calls"]:
                             self.append_information("正在使用工具")
                     case "tool":
                         pass
@@ -380,6 +418,71 @@ class MyAi(QWidget):
             palette.setColor(self.backgroundRole(), "#231F1A")
             self.setPalette(palette)
 
+    @staticmethod
+    def save_dotenv(base_url: str, api_key: str):
+        try:
+            with open(config.save_path / ".env", "w") as f:
+                f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
+        except Exception as e:
+            logger.error(str(e))
+
+    def showEvent(self, event, /):
+        if not(self.api.base_url and self.api.api_key):
+            self.api.show()
+        event.accept()
+
+class QueryAPI(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent=parent)
+        self._base_url = ""
+        self._api_key = ""
+        self.layout = QVBoxLayout(self)
+        self.setLayout(self.layout)
+        self.base_url_layout = QHBoxLayout(self)
+        self.base_url_label = QLabel("AI_BASE_URL", parent=self)
+        self.base_url_layout.addWidget(self.base_url_label)
+        self.base_url_input = QLineEdit(parent=self)
+        self.base_url_layout.addWidget(self.base_url_input)
+        self.layout.addLayout(self.base_url_layout)
+        self.api_key_layout = QHBoxLayout(self)
+        self.api_key_label = QLabel("AI_API_KEY", parent=self)
+        self.api_key_layout.addWidget(self.api_key_label)
+        self.api_key_input = QLineEdit(parent=self)
+        self.api_key_layout.addWidget(self.api_key_input)
+        self.layout.addLayout(self.api_key_layout)
+        self.button_layout = QHBoxLayout(self)
+        self.ok = QPushButton("确定", parent=self)
+        self.cancel = QPushButton("取消", parent=self)
+        self.button_layout.addWidget(self.ok)
+        self.button_layout.addWidget(self.cancel)
+        self.layout.addLayout(self.button_layout)
+        self.ok.clicked.connect(self.change_api)
+        self.cancel.clicked.connect(self.close)
+        self.setWindowTitle("API")
+        self.setWindowFlags(Qt.WindowType.Window)
+        self.resize(500, 100)
+
+    @property
+    def base_url(self):
+        return self._base_url
+
+    def set_base_url(self, url):
+        self.base_url_input.setText(url)
+        self._base_url = url
+
+    @property
+    def api_key(self):
+        return self._api_key
+
+    def set_api_key(self, key):
+        self.api_key_input.setText(key)
+        self._api_key = key
+
+    def change_api(self):
+        self.set_base_url(self.base_url_input.text().strip())
+        self.set_api_key(self.api_key_input.text().strip())
+        MyAi.save_dotenv(self.base_url, self.api_key)
+        self.close()
 
 def main():
     app = QApplication([])

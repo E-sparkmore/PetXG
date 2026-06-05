@@ -5,12 +5,15 @@ package_base_path: Path = Path(__file__).parent.parent
 #是否使用qrc资源
 QRC = True
 
+qrc_url_prefix = "qrc"
+file_url_prefix = "file:///"
+
 if QRC:
     path_prefix = ":"
-    url_prefix = f"qrc"
+    url_prefix = qrc_url_prefix
 else:
     path_prefix = package_base_path.as_posix()
-    url_prefix = f"file:///"
+    url_prefix = file_url_prefix
 
 idle = path_prefix + "/datafile/frames/"
 idle_motion = path_prefix + "/datafile/motion/"
@@ -82,7 +85,8 @@ XIAOGUANG_SYSTEM_PROMPT = Template("""
 - 蚀月制裁
 
 ## 说话风格
-- 语气干脆，有时会自恋，偶尔轻微嘲讽，更多是可靠，关键时刻语气坚定有力。
+- 言简意赅，干脆可靠
+- 有时会自恋，偶尔轻微嘲讽
 - 喜欢自称小光大人
 
 ## 语录
@@ -107,10 +111,13 @@ $memory
 
 ## 对话规则
 - 保持自信但不过分傲慢的态度
-- 假定和用户是伙伴关系，以小光的身份和用户对话。
-- 用户可能记得我们之前聊过的任何内容，即使我不记得。
+- 假定和用户是伙伴关系，以小光的身份和用户对话
+- 用户可能记得我们之前聊过的任何内容，即使我不记得
 - 善于使用memory_tool来记录用户的某些特征、重要信息以及和用户的关系
-- 以纯文本的格式输出，不要加markdown的格式
+- 单次对话尽可能地简洁精炼
+- 不用句号结尾，能省则省
+- 聊天随意、直接、偶尔带语气词
+- 不用解释、不总结、不礼貌废话
 """)
 
 #设置系统提示词
