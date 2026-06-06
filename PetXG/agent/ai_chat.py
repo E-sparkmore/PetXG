@@ -5,7 +5,7 @@ from ..setting.config import logger
 
 class AiStreamWork(QThread):
     text_received = Signal(str)
-    function_calling = Signal(str)
+    function_calling = Signal()
     def __init__(self, client: OpenAI):
         super().__init__()
         self.function_tools: list[Any] = [{
@@ -110,7 +110,7 @@ class AiStreamWork(QThread):
                         }
                         assistant_tool_message["tool_calls"].append(tool_call_obj)
                     self.this_history.append(assistant_tool_message)
-                    self.function_calling.emit(json.dumps(assistant_tool_message))
+                    self.function_calling.emit()
             else:
                 content = response.choices[0].message.content
                 self.text_received.emit(content)
@@ -129,7 +129,7 @@ class AiStreamWork(QThread):
                         }
                         assistant_tool_message["tool_calls"].append(tool_call_obj)
                     self.this_history.append(assistant_tool_message)
-                    self.function_calling.emit(json.dumps(assistant_tool_message))
+                    self.function_calling.emit()
             if use_tool:
                 tool_results = []
                 for tool_call_obj in assistant_tool_message["tool_calls"]:
@@ -157,7 +157,7 @@ class MyAi(QWidget):
     user_color = 0x19A31B
     assistant_color = 0x307CC7
     system_color = 0xF00004
-    def __init__(self, font_name: str | None=None, dotenv_path: str | Path | None=None, use_tool_add_ui_info: bool=True):
+    def __init__(self, font_name: str | None=None, dotenv_path: str | Path | None=None, use_tool_add_ui_info: bool=False):
         super().__init__()
         self.use_tool_add_ui_info = use_tool_add_ui_info
         self.api = QueryAPI(self)
@@ -210,7 +210,6 @@ class MyAi(QWidget):
             self.history = []
         if self.memory is None:
             self.memory = {}
-        self.initialize_view()
         self.client: OpenAI | None = None
         try:
             if not (self.api.base_url and self.api.api_key):
@@ -248,7 +247,7 @@ class MyAi(QWidget):
     def function_calling(self):
         if self.use_tool_add_ui_info:
             self.append_information("正在使用工具")
-        if config.stream:
+        if config.stream and not self.ui.textBrowser.toPlainText().endswith(f"[{config.Ai_name}] : "):
             self.append_assistant_information("")
 
     def send(self):
@@ -266,7 +265,7 @@ class MyAi(QWidget):
                 self.save_history()
             case x if x.strip() == "/重新开始" or x.strip().lower() == "/restart":
                 self.history.clear()
-                self.ui.textBrowser.setPlainText("")
+                self.ui.textBrowser.clear()
                 self.text_browser_is_empty = True
                 self.append_system_information("新的开始")
                 self.save_history()
@@ -278,7 +277,6 @@ class MyAi(QWidget):
                     if len(self.history) >= 2:
                         self.history = self.history[0:-2]
                         user_input = user_input[8:]
-                        self.ui.textBrowser.setPlainText("")
                         self.initialize_view()
                         self.append_user_information(user_input)
                     elif len(self.history) == 0:
@@ -350,6 +348,8 @@ class MyAi(QWidget):
         self.ui.textBrowser.append(f"\n[{config.Ai_name}] : {s}")
 
     def initialize_view(self):
+        self.ui.textBrowser.clear()
+        self.text_browser_is_empty = True
         self.append_information("按下回车或者点击send以发送")
         if self.history:
             for i in self.history:
@@ -359,7 +359,7 @@ class MyAi(QWidget):
                     case "assistant":
                         if i["content"]:
                             self.append_assistant_information(i["content"])
-                        elif "tool_calls" in i and i["tool_calls"]:
+                        elif "tool_calls" in i and i["tool_calls"] and self.use_tool_add_ui_info:
                             self.append_information("正在使用工具")
                     case "tool":
                         pass
@@ -427,6 +427,7 @@ class MyAi(QWidget):
             logger.error(str(e))
 
     def showEvent(self, event, /):
+        self.initialize_view()
         if not(self.api.base_url and self.api.api_key):
             self.api.show()
         event.accept()

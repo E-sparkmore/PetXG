@@ -37,4 +37,6 @@ def start_desktop_app(name: str) -> str:
         return str(e)
 
 cwd = Path(__file__).parent
-PetXG.main(cwd)
+main = PetXG.PetMain(cwd)
+# main.chat.use_tool_add_ui_info = True
+main.exec()
