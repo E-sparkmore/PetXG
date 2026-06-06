@@ -56,7 +56,7 @@ window_English_title = WindowTitle("Music list", f"AI chat: {Ai_name}")
 window_title = window_simplified_Chinese_title
 action_text = action_simplified_Chinese_text
 
-motion_probability = 0.1
+motion_probability = 0.05
 run_probability = 0.05
 #音乐的扩展名列表
 music_filter = ('*.mp3', "*.flac", "*.ogg", "*.wav")

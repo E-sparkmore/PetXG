@@ -198,7 +198,7 @@ class MyPet(QLabel):
         return "成功"
 
     def run_to_position(self, relative_x: float, relative_y: float) -> str:
-        """桌宠小光：逐渐跑动到相对坐标的位置[x,y]，相对坐标取值范围[0,1], 屏幕左上角为[0,0]"""
+        """桌宠小光：逐步跑动到相对坐标的位置[x,y]，相对坐标取值范围[0,1], 屏幕左上角为[0,0]"""
         try:
             if self.grab:
                 return "用户正在使用鼠标抓着桌宠小光"
