@@ -27,11 +27,14 @@ class AiStreamWork(QThread):
         self.error: str = ""
         self.message_stream: str = ""
         self.this_history: list[dict[Any, Any]] = []
-    def prepare(self, history: list[Any], prompt: list[dict[Any, Any]] | None, memory: dict[Any, Any]):
+        self.model: str = ""
+    def prepare(self, history: list[Any], prompt: list[dict[Any, Any]] | None, memory: dict[Any, Any], model):
         self.history = history
         self.prompt = prompt
         self.memory = memory
+        self.model = model
     def run(self):
+        print(self.model)
         messages: list[dict[Any, Any]] = [
             {"role": "system", "content": config.SYSTEM_PROMPT.substitute(memory=json.dumps(self.memory))}
         ]
@@ -46,7 +49,7 @@ class AiStreamWork(QThread):
             if self.client is None:
                 raise Exception("无法连接")
             response = self.client.chat.completions.create(
-                model=config.model,  # 使用DeepSeek对话模型
+                model=self.model,  # 使用DeepSeek对话模型
                 messages=messages,
                 temperature=config.temperature,
                 max_tokens=config.max_tokens,
@@ -160,6 +163,7 @@ class MyAi(QWidget):
     def __init__(self, font_name: str | None=None, dotenv_path: str | Path | None=None, use_tool_add_ui_info: bool=False):
         super().__init__()
         self.use_tool_add_ui_info = use_tool_add_ui_info
+        self.text_is_models = False
         self.api = QueryAPI(self)
         self.stream_work: AiStreamWork | None = None
         if dotenv_path is not None and os.path.exists(dotenv_path):
@@ -211,13 +215,18 @@ class MyAi(QWidget):
         if self.memory is None:
             self.memory = {}
         self.client: OpenAI | None = None
+        self.models: list[str] = []
+        self.use_model: str = ""
         try:
             if not (self.api.base_url and self.api.api_key):
                 raise Exception("base_url或者key为空")
             self.client = OpenAI(api_key=self.api.api_key,
                                  base_url = self.api.base_url)
+            self.models = [i.id for i in self.client.models.list()]
+            self.use_model = self.models[0]
         except Exception as e:
             self.append_system_information('请添加“AI_BASE_URL”与“AI_API_KEY”的环境变量，或者该目录下创建".env“文件，要求使用兼容openai的接口')
+            self.append_system_information(str(e))
             logger.warning(str(e))
             return
 
@@ -255,24 +264,44 @@ class MyAi(QWidget):
         if not user_input:
             return
         self.ui.lineEdit.setText("")
+        if self.text_is_models:
+            choice = user_input
+            if choice.isdigit():
+                choice = int(choice)
+                if 0 <= choice < len(self.models):
+                    self.use_model = self.models[choice]
+                    self.ui.textBrowser.clear()
+                    self.text_browser_is_empty = True
+                    self.initialize_view()
+                    self.text_is_models = False
+                    return
+                else:
+                    return
+            else:
+                return
         self.append_user_information(user_input)
         match user_input:
             case x if len(x) > config.user_input_max_length:
                 self.append_system_information(f"输入过长，请限制在{config.user_input_max_length}字以内。")
-            case x if x.strip().lower() == "/clear_history":
+            case x if x.lower() == "/clear_history":
                 self.history.clear()
                 self.append_system_information("历史记录已清除")
                 self.save_history()
-            case x if x.strip() == "/重新开始" or x.strip().lower() == "/restart":
+            case x if x == "/重新开始" or x.lower() == "/restart":
                 self.history.clear()
                 self.ui.textBrowser.clear()
                 self.text_browser_is_empty = True
                 self.append_system_information("新的开始")
                 self.save_history()
-            case x if x.strip().lower() == "/api":
+            case x if x.lower() == "/api":
                 self.api.show()
+            case x if x.lower() == "/models":
+                self.ui.textBrowser.clear()
+                self.text_browser_is_empty = True
+                for i in range(len(self.models)):
+                    self.append_system_information(f"{i}、{self.models[i]}")
+                self.text_is_models = True
             case _:
-                user_input = user_input.strip()
                 if len(user_input) > 8 and user_input[0:8].lower() == "/resend ":
                     if len(self.history) >= 2:
                         self.history = self.history[0:-2]
@@ -296,7 +325,7 @@ class MyAi(QWidget):
                     self.client.base_url = self.api.base_url
                 if not self.stream_work:
                     self.get_ai_work()
-                self.stream_work.prepare(self.history, [{"role": "user", "content": user_input}], self.memory)
+                self.stream_work.prepare(self.history, [{"role": "user", "content": user_input}], self.memory, self.use_model)
                 self.stream_work.start()
                 if config.stream:
                     self.set_send_disabled(True)

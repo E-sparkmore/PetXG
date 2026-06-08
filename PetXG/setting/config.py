@@ -121,7 +121,6 @@ $memory
 
 #设置系统提示词
 SYSTEM_PROMPT = XIAOGUANG_SYSTEM_PROMPT
-model = "deepseek-v4-flash"
 temperature=1.3   # 控制随机性，稍高让对话更生动
 max_tokens=500   # 限制回复长度
 top_p=0.9   # 核采样
