@@ -34,7 +34,6 @@ class AiStreamWork(QThread):
         self.memory = memory
         self.model = model
     def run(self):
-        print(self.model)
         messages: list[dict[Any, Any]] = [
             {"role": "system", "content": config.SYSTEM_PROMPT.substitute(memory=json.dumps(self.memory))}
         ]
@@ -165,6 +164,7 @@ class MyAi(QWidget):
         self.use_tool_add_ui_info = use_tool_add_ui_info
         self.text_is_models = False
         self.api = QueryAPI(self)
+        self.api.ok.clicked.connect(self.connect_to_server)
         self.stream_work: AiStreamWork | None = None
         if dotenv_path is not None and os.path.exists(dotenv_path):
             load_dotenv(dotenv_path=dotenv_path)
@@ -175,10 +175,12 @@ class MyAi(QWidget):
         elif "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
             base_url = os.environ.get("AI_BASE_URL")
             api_key = os.environ.get("AI_API_KEY")
-            self.save_dotenv(base_url, api_key)
+            self.save_dotenv(base_url, api_key, self.api.use_model)
         if "AI_BASE_URL" in os.environ and "AI_API_KEY" in os.environ:
             self.api.set_base_url(os.environ.get("AI_BASE_URL"))
             self.api.set_api_key(os.environ.get("AI_API_KEY"))
+        if "AI_MODEL" in os.environ and os.environ.get("AI_MODEL"):
+            self.api.use_model = os.environ.get("AI_MODEL")
         self.setWindowOpacity(0.9)
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.set_style()
@@ -216,19 +218,15 @@ class MyAi(QWidget):
             self.memory = {}
         self.client: OpenAI | None = None
         self.models: list[str] = []
-        self.use_model: str = ""
         try:
             if not (self.api.base_url and self.api.api_key):
                 raise Exception("base_url或者key为空")
-            self.client = OpenAI(api_key=self.api.api_key,
-                                 base_url = self.api.base_url)
-            self.models = [i.id for i in self.client.models.list()]
-            self.use_model = self.models[0]
+            else:
+                self.connect_to_server()
         except Exception as e:
             self.append_system_information('请添加“AI_BASE_URL”与“AI_API_KEY”的环境变量，或者该目录下创建".env“文件，要求使用兼容openai的接口')
             self.append_system_information(str(e))
             logger.warning(str(e))
-            return
 
     def get_ai_work(self):
         if self.client:
@@ -269,38 +267,49 @@ class MyAi(QWidget):
             if choice.isdigit():
                 choice = int(choice)
                 if 0 <= choice < len(self.models):
-                    self.use_model = self.models[choice]
-                    self.ui.textBrowser.clear()
-                    self.text_browser_is_empty = True
+                    self.api.use_model = self.models[choice]
+                    MyAi.save_dotenv(self.api.base_url,self.api.api_key, self.api.use_model)
                     self.initialize_view()
                     self.text_is_models = False
                     return
                 else:
                     return
+            elif choice == "/return":
+                self.initialize_view()
+                self.text_is_models = False
+                return
             else:
                 return
-        self.append_user_information(user_input)
         match user_input:
             case x if len(x) > config.user_input_max_length:
                 self.append_system_information(f"输入过长，请限制在{config.user_input_max_length}字以内。")
+                return
             case x if x.lower() == "/clear_history":
                 self.history.clear()
                 self.append_system_information("历史记录已清除")
                 self.save_history()
+                return
             case x if x == "/重新开始" or x.lower() == "/restart":
                 self.history.clear()
                 self.ui.textBrowser.clear()
                 self.text_browser_is_empty = True
                 self.append_system_information("新的开始")
                 self.save_history()
+                return
             case x if x.lower() == "/api":
                 self.api.show()
+                return
             case x if x.lower() == "/models":
                 self.ui.textBrowser.clear()
                 self.text_browser_is_empty = True
+                self.append_information("输入数字以选择模型")
                 for i in range(len(self.models)):
-                    self.append_system_information(f"{i}、{self.models[i]}")
+                    info = f"{i}、{self.models[i]}"
+                    if self.api.use_model == self.models[i]:
+                        info += "（使用中）"
+                    self.append_system_information(info)
                 self.text_is_models = True
+                return
             case _:
                 if len(user_input) > 8 and user_input[0:8].lower() == "/resend ":
                     if len(self.history) >= 2:
@@ -311,26 +320,38 @@ class MyAi(QWidget):
                     elif len(self.history) == 0:
                         self.append_system_information("不可重新发送")
                         return
-                # 获取回复
-                if not self.client:
-                    try:
-                        self.client = OpenAI(api_key = self.api.api_key,
-                                             base_url = self.api.base_url)
-                    except Exception as e:
-                        logger.error(str(e))
-                        self.append_system_information(str(e))
-                        return
-                else:
-                    self.client.api_key = self.api.api_key
-                    self.client.base_url = self.api.base_url
-                if not self.stream_work:
-                    self.get_ai_work()
-                self.stream_work.prepare(self.history, [{"role": "user", "content": user_input}], self.memory, self.use_model)
-                self.stream_work.start()
-                if config.stream:
-                    self.set_send_disabled(True)
-                    self.append_assistant_information("")
+
+        self.append_user_information(user_input)
+        # 获取回复
+        if self.connect_to_server() == 0:
+            self.client.api_key = self.api.api_key
+            self.client.base_url = self.api.base_url
+        else:
+            return
+        if not self.stream_work:
+            self.get_ai_work()
+        self.stream_work.prepare(self.history, [{"role": "user", "content": user_input}], self.memory, self.api.use_model)
+        self.stream_work.start()
+        if config.stream:
+            self.set_send_disabled(True)
+            self.append_assistant_information("")
         return
+
+    def connect_to_server(self):
+        if not self.client:
+            try:
+                self.client = OpenAI(api_key=self.api.api_key,
+                                     base_url=self.api.base_url)
+                self.models = [i.id for i in self.client.models.list()]
+                if not self.api.use_model:
+                    self.api.use_model = self.models[0]
+                    MyAi.save_dotenv(self.api.base_url, self.api.api_key, self.api.use_model)
+            except Exception as e:
+                self.client = None
+                logger.error(str(e))
+                self.append_system_information(str(e))
+                return -1
+        return 0
 
     def set_send_disabled(self, arg: bool):
         if arg:
@@ -448,10 +469,12 @@ class MyAi(QWidget):
             self.setPalette(palette)
 
     @staticmethod
-    def save_dotenv(base_url: str, api_key: str):
+    def save_dotenv(base_url: str, api_key: str, use_model: str | None):
         try:
+            if not use_model:
+                use_model = os.environ.get("AI_MODEL")
             with open(config.save_path / ".env", "w") as f:
-                f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}")
+                f.write(f"AI_BASE_URL = {base_url}\nAI_API_KEY = {api_key}\nAI_MODEL = {use_model}")
         except Exception as e:
             logger.error(str(e))
 
@@ -466,6 +489,7 @@ class QueryAPI(QWidget):
         super().__init__(parent=parent)
         self._base_url = ""
         self._api_key = ""
+        self.use_model = ""
         self.layout = QVBoxLayout(self)
         self.setLayout(self.layout)
         self.base_url_layout = QHBoxLayout()
@@ -511,7 +535,8 @@ class QueryAPI(QWidget):
     def change_api(self):
         self.set_base_url(self.base_url_input.text().strip())
         self.set_api_key(self.api_key_input.text().strip())
-        MyAi.save_dotenv(self.base_url, self.api_key)
+        self.use_model = ""
+        MyAi.save_dotenv(self.base_url, self.api_key, self.use_model)
         self.close()
 
 def main():
