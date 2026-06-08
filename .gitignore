@@ -5,7 +5,7 @@
 /history_.json
 /PetXG/history.json
 /.env
-/dist/
+/dist-3.12/
 /PetXG/datafile/
 /res-dev/
 /PetXG.egg-info/
@@ -16,3 +16,6 @@
 /PetXG/log.txt
 /main.dist/
 /main.build/
+/build/
+/main.spec
+/dist/
