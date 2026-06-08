@@ -454,8 +454,11 @@ class MyAi(QWidget):
             return str(exc)
 
     def save_memory(self):
-        with open(config.save_path / "memory.json", "w") as memory_file_stream:
-            json.dump(self.memory, memory_file_stream)
+        try:
+            with open(config.save_path / "memory.json", "w") as memory_file_stream:
+                json.dump(self.memory, memory_file_stream)
+        except Exception as e:
+            logger.exception(f"memory.json 写入失败: {str(e)}")
 
     def set_style(self):
         scheme = QApplication.styleHints().colorScheme()
