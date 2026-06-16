@@ -247,8 +247,8 @@ class MyAi(QWidget):
         self.stream_work.this_history.clear()
         if config.stream:
             self.set_send_disabled(False)
-        if len(self.history) > config.historical_dialogue_limit * 2:
-            self.history = self.history[-config.historical_dialogue_limit * 2:]
+        while len(self.history) > config.historical_dialogue_limit * 2 or (self.history and self.history[0]["role"] != "user"):
+            self.history.pop(0)
         self.save_history()
 
     def function_calling(self):
