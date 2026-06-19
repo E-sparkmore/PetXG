@@ -39,4 +39,5 @@ def start_desktop_app(name: str) -> str:
 cwd = Path(__file__).parent
 main = PetXG.PetMain(cwd)
 # main.chat.use_tool_add_ui_info = True
+# main.app.setStyle("MacOS")
 main.exec()

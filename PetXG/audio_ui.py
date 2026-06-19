@@ -28,7 +28,7 @@ class AudioWidget(QWidget):
         self.media_player.setAudioOutput(self.audio_output)
         self.media_player.setLoops(self.media_player.Loops.Infinite)
         self.audio_output.setVolume(0.5)
-        self.volume_slider.valueChanged.connect(self.set_volume)
+        self.volume_slider.sliderMoved.connect(self.set_volume)
         self.list_view.currentRowChanged.connect(self.play_audio)
         self.list_view.setFont(self.ui_font)
         self.set_style()
